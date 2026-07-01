@@ -1575,7 +1575,7 @@ listaEscaneadaPendiente.forEach((p, index) => {
         } catch (err) { previewDiv.innerHTML = `❌ Error procesando el documento.`; }
     };
 
- // --- 6. GUARDAR TODO ---
+// --- 6. GUARDAR TODO ---
     window.registrarListaFoto = async (tipo) => {
         if (listaEscaneadaPendiente.length === 0) return;
         if (!confirm(`¿Estás seguro de registrar estas ${listaEscaneadaPendiente.length} fichas?`)) return;
@@ -1659,29 +1659,6 @@ listaEscaneadaPendiente.forEach((p, index) => {
             }
         } catch (updateErr) {
             console.error("Error recargando:", updateErr);
-        }
-    };
-
-        // Limpiar los selectores de archivos e interfaz pendiente
-        listaEscaneadaPendiente = []; 
-        if (document.getElementById(`img_pub_${tipo}`)) document.getElementById(`img_pub_${tipo}`).value = ""; 
-        if (document.getElementById(`doc_pub_${tipo}`)) document.getElementById(`doc_pub_${tipo}`).value = ""; 
-
-        previewDiv.innerHTML = `🎉 Terminado. <br>Éxitos: <span style="color:green; font-weight:bold;">${subidos}</span> | Errores: <span style="color:red; font-weight:bold;">${errores}</span>`;
-        
-        // --- ACTUALIZACIÓN EN TIEMPO REAL AUTOMÁTICA ---
-        try {
-            if(typeof fetchPublicCounts === 'function') await fetchPublicCounts();
-            
-            // Forzar recarga inmediata de las listas correspondientes en pantalla
-            if (tipo === 'miss' && typeof window.loadPubMiss === 'function') await window.loadPubMiss(true);
-            if (tipo === 'fnd' && typeof window.loadPubFnd === 'function') await window.loadPubFnd(true);
-            
-            if (document.getElementById('admin-dashboard') && document.getElementById('admin-dashboard').style.display === 'block') {
-                if (typeof window.loadAdminData === 'function') await window.loadAdminData(true);
-            }
-        } catch (updateErr) {
-            console.error("Error recargando componentes visuales:", updateErr);
         }
     };
 // ============================================================================
