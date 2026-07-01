@@ -1,0 +1,174 @@
+// =============================================================================
+//               CENTINELA MAESTRO - V8 (SIN CACHÉ + RELOJ ANTI-SPAM)
+// =============================================================================
+
+var BOT_TOKEN = "8378253776:AAHe3WiQj2Jh8ZckDlbEUTS87qoN48voP5s"; 
+var CHAT_ID = "8264753970"; 
+var PROJECT_ID = "sos-venezuela-f2969";
+var FIREBASE_API_KEY = "AIzaSyCtGlQkyIKHTyOd7GK4wVSJX-xE1wG_Ue0"; 
+
+var ADMIN_EMAIL = "tu_correo_admin@gmail.com"; 
+var ADMIN_PASS = "tu_contraseña"; 
+
+var WEBAPP_URL = "https://script.google.com/macros/s/AKfycbwYCK4jro3dqfUIF_e-jU4NuIVtbjK72iX1ffu8FPTRwrcMdYSIYgYcpjN17rKreM8/exec"; 
+
+// =============================================================================
+// 1. HERRAMIENTAS DEL SISTEMA
+// =============================================================================
+
+function conectarTelegram() {
+  var url = "https://api.telegram.org/bot" + BOT_TOKEN + "/setWebhook?url=" + WEBAPP_URL + "&drop_pending_updates=true";
+  Logger.log(UrlFetchApp.fetch(url, {muteHttpExceptions: true}).getContentText());
+}
+
+function fijarMenuTelegram() {
+  var payload = { "commands": [ {"command": "estadisticas", "description": "📊 Ver estadísticas"}, {"command": "start", "description": "🔄 Menú principal"} ] };
+  UrlFetchApp.fetch("https://api.telegram.org/bot" + BOT_TOKEN + "/setMyCommands", { "method": "post", "contentType": "application/json", "payload": JSON.stringify(payload), "muteHttpExceptions": true });
+}
+
+// =============================================================================
+// 2. RECEPCIÓN DE MENSAJES (WEBHOOK A PRUEBA DE FALLOS)
+// =============================================================================
+
+function doPost(e) {
+  try {
+    if(e.postData && e.postData.contents) {
+      var data = JSON.parse(e.postData.contents);
+
+      // CASO A: Botón de confirmación (Coincidencias)
+      if(data.callback_query) {
+        var cb = data.callback_query;
+        if(cb.data.indexOf("MATCH_") === 0) {
+          var parts = cb.data.split("_");
+          var datosFam = obtenerUnDocumento("desaparecidos", parts[1]);
+          var tokenAuth = obtenerTokenAdmin();
+          
+          if(datosFam && tokenAuth) {
+            actualizarFichaFirebase(parts[2], datosFam.fam_nombre, datosFam.fam_tel, tokenAuth);
+            editarMensajeTelegram(cb.message.chat.id, cb.message.message_id);
+          }
+        }
+      }
+
+      // CASO B: Teclado interactivo (Estadísticas)
+      if(data.message && data.message.text) {
+        var chatIdMsg = data.message.chat.id;
+        var texto = data.message.text.toLowerCase();
+
+        if (texto.indexOf("est") !== -1 || texto.indexOf("📊") !== -1) {
+          enviarEstadisticas(chatIdMsg);
+        } else {
+          enviarMenuPrincipal(chatIdMsg);
+        }
+      }
+    }
+  } catch (error) {
+    // Si algo falla, lo ignoramos en silencio para no romper Telegram
+  }
+  
+  // Esta es la línea de oro. Siempre le dice a Telegram "Recibido", pase lo que pase.
+  return ContentService.createTextOutput("OK"); 
+}
+
+// =============================================================================
+// 3. FUNCIONES VISUALES Y DE COMUNICACIÓN
+// =============================================================================
+
+function enviarMenuPrincipal(chatId) {
+  var teclado = { "keyboard": [[{"text": "📊 Ver Estadísticas"}]], "resize_keyboard": true, "is_persistent": true };
+  var payload = { "chat_id": chatId, "text": "🤖 *Sistema de Comando Activo*", "parse_mode": "Markdown", "reply_markup": teclado };
+  UrlFetchApp.fetch("https://api.telegram.org/bot" + BOT_TOKEN + "/sendMessage", { "method": "post", "contentType": "application/json", "payload": JSON.stringify(payload), "muteHttpExceptions": true });
+}
+
+function enviarEstadisticas(chatId) {
+  var tokenAuth = obtenerTokenAdmin(); 
+  
+  if (!tokenAuth) {
+    var errorMsg = { "chat_id": chatId, "text": "⚠️ *Error:* No se pudo conectar a Firebase. Revisa el correo/clave del panel." };
+    UrlFetchApp.fetch("https://api.telegram.org/bot" + BOT_TOKEN + "/sendMessage", { "method": "post", "contentType": "application/json", "payload": JSON.stringify(errorMsg), "muteHttpExceptions": true });
+    return;
+  }
+  
+  var miss = obtenerConteoRest("desaparecidos", tokenAuth);
+  var fnd = obtenerConteoRest("encontrados", tokenAuth);
+  var total = (parseInt(miss) || 0) + (parseInt(fnd) || 0);
+
+  // RELOJ ANTI-SPAM (Hora local de Venezuela)
+  var horaActual = new Date().toLocaleTimeString('es-VE', { timeZone: 'America/Caracas' });
+
+  var msg = "📊 *ESTADÍSTICAS EN TIEMPO REAL* 📊\n\n" +
+            "🔴 *Buscados (Desaparecidos):* " + miss + "\n" +
+            "🔵 *Localizados (Encontrados):* " + fnd + "\n" +
+            "-----------------------------------\n" +
+            "📝 *Total de Registros:* " + total + "\n\n" +
+            "🕒 _Actualizado: " + horaActual + "_";
+
+  var payload = { "chat_id": chatId, "text": msg, "parse_mode": "Markdown" };
+  UrlFetchApp.fetch("https://api.telegram.org/bot" + BOT_TOKEN + "/sendMessage", { "method": "post", "contentType": "application/json", "payload": JSON.stringify(payload), "muteHttpExceptions": true });
+}
+
+function editarMensajeTelegram(chatId, msgId) {
+  var payload = { "chat_id": chatId, "message_id": msgId, "text": "✅ *FICHA CREADA OFICIALMENTE*\nLos datos han sido vinculados en Firebase.", "parse_mode": "Markdown" };
+  UrlFetchApp.fetch("https://api.telegram.org/bot" + BOT_TOKEN + "/editMessageText", { "method": "post", "contentType": "application/json", "payload": JSON.stringify(payload), "muteHttpExceptions": true });
+}
+
+// =============================================================================
+// 4. CONEXIONES A FIREBASE (DIRECTAS Y SIN CACHÉ)
+// =============================================================================
+
+function obtenerTokenAdmin() {
+  var url = "https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=" + FIREBASE_API_KEY;
+  var payload = { "email": ADMIN_EMAIL, "password": ADMIN_PASS, "returnSecureToken": true };
+  try {
+    var res = UrlFetchApp.fetch(url, { "method": "post", "contentType": "application/json", "payload": JSON.stringify(payload), "muteHttpExceptions": true });
+    if(res.getResponseCode() === 200) {
+      return JSON.parse(res.getContentText()).idToken;
+    }
+    return null;
+  } catch(e) { return null; }
+}
+
+function obtenerConteoRest(coleccion, token) {
+  var url = "https://firestore.googleapis.com/v1/projects/" + PROJECT_ID + "/databases/(default)/documents:runAggregationQuery";
+  var payload = { "structuredAggregationQuery": { "structuredQuery": { "from": [{"collectionId": coleccion}] }, "aggregations": [{"alias": "total", "count": {}}] } };
+  var options = { "method": "post", "contentType": "application/json", "payload": JSON.stringify(payload), "muteHttpExceptions": true };
+  if (token) options.headers = {"Authorization": "Bearer " + token};
+  
+  try {
+    var res = UrlFetchApp.fetch(url, options);
+    if (res.getResponseCode() === 200) {
+      var data = JSON.parse(res.getContentText());
+      if (data && data[0] && data[0].result && data[0].result.aggregateFields) {
+        return data[0].result.aggregateFields.total.integerValue || "0";
+      }
+    }
+    return "0";
+  } catch(e) { return "0"; }
+}
+
+function obtenerUnDocumento(coleccion, id) {
+  var url = "https://firestore.googleapis.com/v1/projects/" + PROJECT_ID + "/databases/(default)/documents/" + coleccion + "/" + id;
+  try {
+    var res = UrlFetchApp.fetch(url, { "muteHttpExceptions": true });
+    if(res.getResponseCode() === 200) {
+      var fields = JSON.parse(res.getContentText()).fields;
+      return { fam_nombre: fields.fam_nombre ? fields.fam_nombre.stringValue : "", fam_tel: fields.fam_tel ? fields.fam_tel.stringValue : "" };
+    }
+    return null;
+  } catch(e) { return null; }
+}
+
+function actualizarFichaFirebase(fId, fam_nombre, fam_tel, token) {
+  var url = "https://firestore.googleapis.com/v1/projects/" + PROJECT_ID + "/databases/(default)/documents/encontrados/" + fId + "?updateMask.fieldPaths=reunificado&updateMask.fieldPaths=fam_nombre&updateMask.fieldPaths=fam_tel";
+  var payload = { "fields": { "reunificado": { "booleanValue": true }, "fam_nombre": { "stringValue": fam_nombre }, "fam_tel": { "stringValue": fam_tel } } };
+  UrlFetchApp.fetch(url, { "method": "patch", "contentType": "application/json", "headers": { "Authorization": "Bearer " + token }, "payload": JSON.stringify(payload), "muteHttpExceptions": true });
+}
+
+// (Las funciones de Escaneo Automático se omiten en pantalla por espacio, pero tú sí debes pegar aquí tu bloque escanearSOS() y extraerDatos() si las tienes).
+
+
+
+
+
+
+geminis vamos añadir una funcion en el panel principal de index.html, tanto en registrar desaparecios y en registras encontrados, la funcion va sesr la siguiente, vamos añadir una ventana para subir fotos de  codigo qr, esa ventana debe escanear el qr  solo si es de un listado de personas, rellenar todos los datos que  lea en el qr, por registos ejemplo  si hay 100 personas al escanear el qr, el sistema crea automaticamente 100 fichas de solo precionar el boto de registrar, 

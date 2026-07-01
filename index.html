@@ -1,0 +1,932 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SOS VENEZUELA - Búsqueda y Rescate</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/browser-image-compression@2.0.1/dist/browser-image-compression.js"></script>
+    <style>
+        :root {
+            --red-main: #d32f2f;
+            --blue-main: #1976d2;
+            --green-main: #2e7d32;
+            --dark-main: #37474f;
+            --bg-color: #f4f7f6;
+            --surface: rgba(255, 255, 255, 0.98);
+        }
+        * { box-sizing: border-box; font-family: 'Segoe UI', Roboto, Arial, sans-serif; }
+       body { 
+            margin: 0; 
+            padding: 20px; 
+            background-color: var(--bg-color); 
+            background-image: url('vezla.png'); 
+            background-size: cover; 
+            background-position: center; 
+            background-attachment: fixed; 
+        } 
+        .public-container { max-width: 900px; margin: auto; }
+        .header-card { background: var(--surface); padding: 30px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); text-align: center; margin-bottom: 20px; }
+        h1 { color: var(--red-main); font-size: 2.5rem; margin: 0 0 5px 0; font-weight: 900; }
+        
+        /* 3 Ventanas de Estadísticas Públicas */
+        .stats-public-grid { display: flex; gap: 15px; justify-content: center; flex-wrap: wrap; margin-top: 20px; }
+        .stat-window { flex: 1; min-width: 120px; padding: 15px; border-radius: 12px; background: white; box-shadow: 0 4px 10px rgba(0,0,0,0.05); border-bottom: 5px solid #ccc; }
+        .stat-window.red { border-color: var(--red-main); }
+        .stat-window.blue { border-color: var(--blue-main); }
+        .stat-window.green { border-color: var(--green-main); }
+        .stat-window h3 { margin: 0 0 5px 0; font-size: 13px; color: #555; text-transform: uppercase; }
+        .stat-window span { font-size: 28px; font-weight: bold; color: var(--dark-main); }
+
+        .nav-buttons { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+        .btn { flex: 1; padding: 14px 20px; border: none; border-radius: 8px; cursor: pointer; font-size: 15px; font-weight: bold; color: white; text-transform: uppercase; transition: 0.2s; min-width: 180px;}
+        .btn-red { background: var(--red-main); } .btn-red:hover { background: #b71c1c; }
+        .btn-blue { background: var(--blue-main); } .btn-blue:hover { background: #115293; }
+        .btn-green { background: var(--green-main); } .btn-green:hover { background: #1b5e20; }
+        .btn-dark { background: var(--dark-main); } .btn-dark:hover { background: #263238; }
+        .btn-sm { padding: 8px 12px; font-size: 12px; min-width: auto; }
+        
+        .section-card { background: var(--surface); padding: 30px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); display: none; }
+        .section-card.active { display: block; animation: fadeIn 0.4s; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        @media (max-width: 600px) { .form-grid { grid-template-columns: 1fr; } }
+        
+        input, select { width: 100%; padding: 12px; margin: 5px 0 15px 0; border: 2px solid #ddd; border-radius: 6px; font-size: 15px; }
+        input:focus, select:focus { border-color: var(--dark-main); outline: none; }
+        label { font-weight: 600; font-size: 13px; color: #555; }
+        
+        #qrcode { background: white; padding: 10px; border-radius: 8px; display: inline-block; margin-top: 10px; }
+
+        /* PANEL DE ADMINISTRACIÓN */
+        #admin-dashboard { display: none; max-width: 1200px; margin: auto; }
+        .admin-nav { display: flex; gap: 10px; margin-bottom: 20px; background: white; padding: 15px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); overflow-x: auto;}
+        
+        .admin-tab-content { display: none; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); min-height: 500px; }
+        .admin-tab-content.active { display: block; }
+        
+        .tab-red { border-top: 6px solid var(--red-main); }
+        .tab-blue { border-top: 6px solid var(--blue-main); }
+        .tab-green { border-top: 6px solid var(--green-main); }
+        
+        .search-bar { width: 100%; padding: 15px; font-size: 16px; border-radius: 30px; border: 2px solid #eee; margin-bottom: 20px; background: #f9f9f9; }
+        .filter-row { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+        
+        .record-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 15px; }
+        .data-card { border: 1px solid #eee; border-radius: 8px; padding: 15px; background: #fafafa; position: relative; }
+        .data-card h4 { margin: 0 0 10px 0; font-size: 16px; }
+        .data-card p { margin: 4px 0; font-size: 13px; color: #444; }
+        .data-card .tag { display: inline-block; padding: 3px 8px; border-radius: 12px; font-size: 11px; font-weight: bold; color: white; margin-bottom: 10px; }
+        .card-critico { border-left: 5px solid var(--red-main); background: #ffebee; }
+        
+        .match-card { border: 2px solid var(--green-main); background: #f1f8e9; padding: 20px; border-radius: 12px; margin-bottom: 15px; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; transition: 0.3s; }
+        @media (max-width: 768px) { .match-card { grid-template-columns: 1fr; } }
+        
+        .wa-btn { background: #25D366; color: white; text-decoration: none; padding: 8px 15px; border-radius: 20px; font-weight: bold; font-size: 13px; display: inline-block; margin-top: 10px; cursor:pointer; border:none;}
+        .load-more-btn { background: #e0e0e0; color: #333; width: 100%; padding: 15px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; margin-top: 20px; }
+       .load-more-btn:hover { background: #ccc; }
+        
+        /* Tema Oscuro */
+       body.dark-theme { 
+            --bg-color: #121212; 
+            --surface: #1e1e1e; 
+            color: #e0e0e0; 
+            background-blend-mode: multiply; /* Esto oscurece automáticamente la imagen vezla.png en modo oscuro */
+        }
+        body.dark-theme .header-card, body.dark-theme .section-card, body.dark-theme .stat-window, body.dark-theme .admin-tab-content { background: var(--surface); color: #fff; box-shadow: 0 4px 15px rgba(255,255,255,0.05); }
+        body.dark-theme h1, body.dark-theme h2, body.dark-theme h3, body.dark-theme label { color: #fff !important; }
+        body.dark-theme input, body.dark-theme select { background: #333; color: #fff; border-color: #555; }
+        body.dark-theme .stat-window span { color: #fff; }
+        body.dark-theme .data-card { background: #2a2a2a; border-color: #444; }
+        
+        /* Contenedores Públicos Ampliados */
+        .stats-public-grid { flex-direction: column; }
+        .stat-window { width: 100%; text-align: left; position: relative; }
+        .stat-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eee; padding-bottom: 10px; margin-bottom: 15px; }
+        body.dark-theme .stat-header { border-color: #444; }
+        
+        .public-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 15px; }
+        .public-ficha { border: 1px solid #ddd; border-radius: 8px; padding: 15px; display: flex; flex-direction: column; gap: 8px; font-size: 14px; background: #fafafa; }
+        body.dark-theme .public-ficha { background: #2c2c2c; border-color: #555; }
+        .ficha-img { width: 100%; height: 180px; object-fit: cover; border-radius: 6px; background: #ccc; }
+        
+        /* Encuestas */
+        .poll-card { border: 1px solid var(--blue-main); padding: 15px; border-radius: 8px; margin-bottom: 15px; }
+        .poll-option { display: flex; justify-content: space-between; background: #eee; padding: 10px; border-radius: 6px; margin-top: 8px; cursor: pointer; transition: 0.2s; }
+        body.dark-theme .poll-option { background: #444; color: #fff; }
+        .poll-option:hover { background: #ddd; }
+        body.dark-theme .poll-option:hover { background: #555; }
+        
+        .theme-toggle { position: absolute; top: 20px; right: 20px; cursor: pointer; background: var(--dark-main); color: white; border: none; padding: 8px 12px; border-radius: 20px; font-size: 12px; }
+    </style>
+</head>
+<body>
+
+<!-- VISTA PÚBLICA -->
+<div id="public-view" class="public-container">
+    <button class="theme-toggle" onclick="toggleTheme()">🌓 Tema Oscuro/Claro</button>
+    <div class="header-card" style="position:relative;">
+        <h1>SOS VENEZUELA</h1>
+        <p style="color: #666; font-size: 14px; margin-bottom:0;">Plataforma Nacional de Búsqueda y Localización</p>
+        
+        <!-- Ventanas Expandidas con Paginación -->
+        <div class="stats-public-grid">
+            <div class="stat-window" style="border-top: 5px solid var(--dark-main); text-align:center;">
+                <h3>Total Registros Procesados</h3>
+                <span id="pub-count-total">0</span>
+            </div>
+            
+            <div class="stat-window red">
+                <div class="stat-header">
+                    <div><h3 style="color:var(--red-main);">Buscados (Desaparecidos)</h3></div>
+                    <span id="pub-count-miss">0</span>
+                </div>
+                <div id="pub-list-miss" class="public-list"></div>
+                <button class="load-more-btn" onclick="loadPubMiss()">⬇️ Ver Siguientes 10</button>
+            </div>
+            
+            <div class="stat-window blue">
+                <div class="stat-header">
+                    <div><h3 style="color:var(--blue-main);">Localizados (Encontrados)</h3></div>
+                    <span id="pub-count-fnd">0</span>
+                </div>
+                <div id="pub-list-fnd" class="public-list"></div>
+                <button class="load-more-btn" onclick="loadPubFnd()">⬇️ Ver Siguientes 10</button>
+            </div>
+            
+            <div class="stat-window green">
+                <div class="stat-header">
+                    <div><h3 style="color:var(--green-main);">Con Familiares</h3></div>
+                    <span id="pub-count-fam">0</span>
+                </div>
+                <div id="pub-list-fam" class="public-list"></div>
+                <button class="load-more-btn" onclick="loadPubFam()">⬇️ Ver Siguientes 10</button>
+            </div>
+        </div>
+
+        <div id="qrcode"></div>
+        <p style="font-size:12px; color:#888;">Escanea para compartir</p>
+    </div>
+    <!-- BANNER DE NOTICIAS -->
+    <div id="news-banner" style="display:none; background: #fff3cd; border-left: 5px solid #ffc107; padding: 15px; border-radius: 8px; margin-bottom: 20px; margin-top: 15px; color: #856404; box-shadow: 0 4px 10px rgba(0,0,0,0.05);">
+        <h3 style="margin: 0 0 10px 0; color: #856404;">📢 Boletín Oficial</h3>
+        <p id="news-content" style="margin: 0 0 10px 0; font-size: 15px; white-space: pre-wrap;"></p>
+        <img id="news-image" style="display:none; max-width: 100%; max-height: 400px; object-fit: cover; border-radius: 6px; margin-top: 10px;">
+    </div>
+    <div class="nav-buttons">
+        <button class="btn btn-red" onclick="showSection('missing')">Reportar Desaparecido</button>
+        <button class="btn btn-blue" onclick="showSection('found')">Reportar Encontrado</button>
+        <button class="btn btn-green" onclick="showSection('publicados'); loadPublic Gallery();">Ver Localizados</button>
+     <button class="btn btn-dark" style="background:#ff9800;" onclick="showSection('encuestas'); loadPolls()">Ver Encuestas</button>
+        <button class="btn btn-dark" onclick="showSection('admin-login')">Acceso Oficial</button>
+    </div>
+
+    <!-- SECCIÓN PÚBLICA DE ENCUESTAS -->
+    <div id="encuestas" class="section-card" style="border-top: 5px solid #ff9800;">
+        <h2 style="color: #ff9800;">Encuestas Oficiales</h2>
+        <div id="polls-public-container">Cargando encuestas...</div>
+    </div>
+    <div id="missing" class="section-card active" style="border-top: 5px solid var(--red-main);">
+        <h2 style="color: var(--red-main);">Registrar Persona Desaparecida</h2>
+        <form id="form-missing" onsubmit="handleMissingSubmit(event)">
+            <div class="form-grid">
+                <div><label>Nombre(s):</label><input type="text" id="m_nombre" required style="text-transform: uppercase;"></div>
+                <div><label>Apellido(s):</label><input type="text" id="m_apellido" required style="text-transform: uppercase;"></div>
+                <div><label>Cédula de Identidad (Obligatorio):</label><input type="number" id="m_cedula" required placeholder="Solo números"></div>
+                <div><label>Edad Aproximada:</label><input type="number" id="m_edad" required placeholder="Ej. 35"></div>
+                <div><label>Sexo:</label><select id="m_sexo" required><option value="Masculino">Masculino</option><option value="Femenino">Femenino</option></select></div>
+                <div><label>Última Vestimenta Conocida:</label><input type="text" id="m_vestimenta" placeholder="Ej. Franela roja, jean azul"></div>
+            </div>
+            <div class="form-grid">
+                <div><label>Foto Persona (Opcional):</label><input type="file" id="m_foto_persona" accept="image/*"></div>
+                <div><label>Foto Cédula (Opcional):</label><input type="file" id="m_foto_cedula" accept="image/*"></div>
+            </div>
+            <h3 style="border-top: 1px solid #eee; padding-top: 15px;">Contacto del Familiar</h3>
+            <div class="form-grid">
+                <div><label>Nombre y Apellido:</label><input type="text" id="f_nombre_completo" required></div>
+                <div><label>Teléfono (WhatsApp):</label><input type="tel" id="f_telefono" required placeholder="Ej. 04141234567"></div>
+            </div>
+            <button type="submit" class="btn btn-red" id="btn_missing" style="width:100%;">Registrar Desaparecido</button>
+        </form>
+    </div>
+
+    <div id="found" class="section-card" style="border-top: 5px solid var(--blue-main);">
+        <h2 style="color: var(--blue-main);">Registrar Persona Encontrada</h2>
+        <form id="form-found" onsubmit="handleFoundSubmit(event)">
+            <div class="form-grid">
+                <div><label>Nombre(s):</label><input type="text" id="e_nombre" required style="text-transform: uppercase;"></div>
+                <div><label>Apellido(s):</label><input type="text" id="e_apellido" required style="text-transform: uppercase;"></div>
+                <div><label>Cédula de Identidad:</label><input type="number" id="e_cedula" required placeholder="Solo números"></div>
+                <div><label>Edad Aproximada:</label><input type="number" id="e_edad" required></div>
+                <div><label>Sexo:</label><select id="e_sexo" required><option value="Masculino">Masculino</option><option value="Femenino">Femenino</option></select></div>
+                <div><label>Condición Física (Salud):</label>
+                    <select id="e_condicion" required>
+                        <option value="Ileso/Estable">Ileso / Estable</option>
+                        <option value="Herido Leve">Herido Leve</option>
+                        <option value="Crítico/Requiere Asistencia">Crítico / Requiere Asistencia Médica</option>
+                        <option value="Desconocido">Desconocido</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-grid">
+                <div><label>Estado Actual:</label><input type="text" id="e_estado" required></div>
+                <div><label>Municipio Actual:</label><input type="text" id="e_municipio" required></div>
+                <div><label>Foto Persona (Opcional):</label><input type="file" id="e_foto_persona" accept="image/*"></div>
+                <div><label>Foto Cédula (Opcional):</label><input type="file" id="e_foto_cedula" accept="image/*"></div>
+            </div>
+            <button type="submit" class="btn btn-blue" id="btn_found" style="width:100%;">Registrar Encontrado</button>
+        </form>
+    </div>
+
+    <!-- NUEVO: Galería Pública de Encontrados -->
+    <div id="publicados" class="section-card" style="border-top: 5px solid var(--green-main);">
+        <h2 style="color: var(--green-main);">Personas Localizadas Oficialmente</h2>
+        <p>Listado de personas encontradas y publicadas por el centro de comando.</p>
+        <div id="public-gallery-grid" class="record-grid">Cargando datos públicos...</div>
+    </div>
+
+    <div id="admin-login" class="section-card" style="max-width: 500px; margin: auto;">
+        <h2>Panel Administrativo</h2>
+        <label>Correo Oficial (Firebase):</label><input type="email" id="admin_user">
+        <label>Contraseña:</label><input type="password" id="admin_pass">
+        <button class="btn btn-dark" onclick="loginAdmin()" style="width:100%;">Acceder</button>
+    </div>
+</div>
+
+<!-- PANEL DE ADMINISTRACIÓN -->
+<div id="admin-dashboard">
+    <div style="display:flex; justify-content:space-between; align-items:center; background: white; padding: 20px; border-radius: 12px; margin-bottom: 20px; flex-wrap:wrap; gap:10px;">
+        <h2 style="margin:0;">Centro de Comando SOS</h2>
+        <div>
+            <button class="btn btn-blue" style="min-width:auto; padding: 10px 20px;" onclick="loadAdminData(true)">🔄 Refrescar Datos</button>
+            <button class="btn btn-dark" style="min-width:auto; padding: 10px 20px;" onclick="cerrarSesion()">Cerrar Sesión</button>
+        </div>
+    </div>
+
+    <div class="admin-nav">
+        <button class="btn btn-red" onclick="switchAdminTab('tab-miss')">Desaparecidos</button>
+        <button class="btn btn-blue" onclick="switchAdminTab('tab-fnd')">Encontrados</button>
+        <button class="btn btn-green" onclick="switchAdminTab('tab-match'); analyzeMatches();">Analizar y Comparar Datos</button>
+       <button class="btn btn-dark" style="background:#ff9800; color:white; border:none;" onclick="switchAdminTab('tab-polls')">Crear Encuesta</button>
+        <button class="btn btn-dark" onclick="switchAdminTab('tab-cfg')">Ajustes Web</button>
+    </div>
+    <!-- PESTAÑA ROJA: DESAPARECIDOS -->
+    <div id="tab-miss" class="admin-tab-content tab-red active">
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap;">
+            <h2 style="color:var(--red-main);">Registro de Personas Desaparecidas</h2>
+            <div><button class="btn btn-dark btn-sm" onclick="window.print()">🖨️ Imprimir Listado</button></div>
+        </div>
+        
+        <div class="filter-row">
+            <input type="text" id="searchMiss" class="search-bar" style="flex:2; margin-bottom:0;" placeholder="🔍 Buscar localmente..." onkeyup="filterAdvanced('searchMiss', 'filSexoMiss', 'miss-grid')">
+            <select id="filSexoMiss" style="flex:1; margin-bottom:0; padding:15px; border-radius:30px;" onchange="filterAdvanced('searchMiss', 'filSexoMiss', 'miss-grid')">
+                <option value="">Todos los Sexos</option>
+                <option value="Masculino">Masculino</option>
+                <option value="Femenino">Femenino</option>
+            </select>
+        </div>
+        <div id="miss-grid" class="record-grid">Cargando...</div>
+        <button class="load-more-btn" onclick="loadMoreMiss()">⬇️ Cargar 50 Registros Más</button>
+    </div>
+
+    <!-- PESTAÑA AZUL: ENCONTRADOS -->
+    <div id="tab-fnd" class="admin-tab-content tab-blue">
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap;">
+            <h2 style="color:var(--blue-main);">Registro de Personas Encontradas</h2>
+            <div><button class="btn btn-dark btn-sm" onclick="window.print()">🖨️ Imprimir Listado</button></div>
+        </div>
+
+        <div class="filter-row">
+            <input type="text" id="searchFnd" class="search-bar" style="flex:2; margin-bottom:0;" placeholder="🔍 Buscar localmente..." onkeyup="filterAdvancedFnd()">
+            <select id="filSexoFnd" style="flex:1; margin-bottom:0; padding:15px; border-radius:30px;" onchange="filterAdvancedFnd()">
+                <option value="">Todos los Sexos</option>
+                <option value="Masculino">Masculino</option>
+                <option value="Femenino">Femenino</option>
+            </select>
+        </div>
+        
+        <div style="margin-bottom:15px; font-size:13px; background:#e3f2fd; padding:10px; border-radius:6px; display:inline-block;">
+            📊 <strong>Estadísticas Cargadas:</strong> <span id="stat-ileso">0</span> Ilesos | <span id="stat-critico" style="color:red; font-weight:bold;">0</span> Críticos/Heridos
+        </div>
+
+        <div id="fnd-grid" class="record-grid">Cargando...</div>
+        <button class="load-more-btn" onclick="loadMoreFnd()">⬇️ Cargar 50 Registros Más</button>
+    </div>
+
+    <!-- PESTAÑA VERDE: RELACIONES -->
+    <div id="tab-match" class="admin-tab-content tab-green">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+            <h2 style="color:var(--green-main);">Relaciones Confirmadas y Contacto Familiar</h2>
+        </div>
+        <p style="color:#d32f2f; font-weight:bold; background:#ffebee; padding:10px; border-radius:6px;">⚠️ El cruce procesa los últimos 1000 registros para proteger la cuota de la base de datos.</p>
+        <div id="match-container">Procesando coincidencias...</div>
+    </div>
+
+<!-- PESTAÑA ENCUESTAS -->
+    <div id="tab-polls" class="admin-tab-content" style="border-top: 6px solid #ff9800;">
+        <h2 style="color:#ff9800;">Crear Nueva Encuesta</h2>
+        <div class="form-grid">
+            <div><label>Pregunta de la Encuesta:</label><input type="text" id="poll_q" placeholder="Ej. ¿Qué insumos faltan más en tu zona?"></div>
+            <div>
+                <label>Opciones (Separadas por coma):</label>
+                <input type="text" id="poll_opt" placeholder="Agua, Medicinas, Comida, Ropa">
+            </div>
+        </div>
+        <button class="btn btn-dark" style="background:#ff9800; width:100%; border:none;" onclick="crearEncuesta()">Publicar Encuesta</button>
+    </div>
+
+    <!-- PESTAÑA AJUSTES -->
+    <div id="tab-cfg" class="admin-tab-content" style="border-top: 6px solid var(--dark-main);">
+        <h2>Configuración y Control Total</h2>
+        <div class="form-grid">
+           <div style="background:#fafafa; padding:20px; border:1px solid #ddd; border-radius:8px;">
+                <h3>📢 Noticia Principal (Aviso Público)</h3>
+                <label>Breve Reseña o Boletín:</label>
+                <textarea id="news_text" rows="3" style="width:100%; padding:10px; margin-bottom:10px; border-radius:6px; border:1px solid #ccc; font-family:inherit;" placeholder="Ej: Se requiere apoyo médico en la zona norte..."></textarea>
+                <label>Foto adjunta (Opcional):</label>
+                <input type="file" id="news_img" accept="image/*" style="margin-bottom:15px;">
+                <button class="btn btn-blue" style="width:100%; margin-bottom:10px;" onclick="publicarNoticia()">Publicar Noticia</button>
+                <button class="btn btn-dark" style="width:100%;" onclick="borrarNoticia()">🗑️ Quitar Noticia</button>
+            </div>
+            
+            <div style="background:#ffebee; padding:20px; border:1px solid var(--red-main); border-radius:8px;">
+                <h3 style="color:var(--red-main);">Zona de Peligro</h3>
+                <p>Borra absolutamente todos los registros de la base de datos de Firebase.</p>
+                <button class="btn btn-red" style="width:100%;" onclick="reiniciarTodo()">⚠️ REINICIAR TODO (BORRAR DB)</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- SCRIPT DE FIREBASE Y LÓGICA -->
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+   import { getFirestore, collection, addDoc, getDocs, doc, setDoc, getDoc, updateDoc, deleteDoc, query, orderBy, limit, startAfter, where, getCountFromServer, increment } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+    import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
+    import { getAuth, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyCtGlQkyIKHTyOd7GK4wVSJX-xE1wG_Ue0",
+      authDomain: "sos-venezuela-f2969.firebaseapp.com",
+      projectId: "sos-venezuela-f2969",
+      storageBucket: "sos-venezuela-f2969.firebasestorage.app",
+      messagingSenderId: "284053614895",
+      appId: "1:284053614895:web:834c1804b5432ae7d031da"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const storage = getStorage(app);
+    const auth = getAuth(app);
+
+    // Variables de Paginación
+    let lastMissDoc = null;
+    let lastFndDoc = null;
+let pubLastMiss = null;
+    let pubLastFnd = null;
+    let pubLastFam = null;
+window.onload = async () => {
+        // Limpiamos el contenedor por si acaso y generamos el QR más grande con la URL oficial
+        document.getElementById("qrcode").innerHTML = "";
+        new QRCode(document.getElementById("qrcode"), { 
+            text: "https://sos-venezuela-f2969.web.app", 
+            width: 220, 
+            height: 220,
+            colorDark : "#000000",
+            colorLight : "#ffffff",
+            correctLevel : QRCode.CorrectLevel.H // Alto nivel de corrección para lectura rápida
+        });
+
+        try {
+            const docSnap = await getDoc(doc(db, "config", "ui"));
+            if (docSnap.exists()) {
+                const data = docSnap.data();
+                if (data.newsText || data.newsImgUrl) {
+                    document.getElementById('news-banner').style.display = 'block';
+                    if(data.newsText) document.getElementById('news-content').innerText = data.newsText;
+                    if(data.newsImgUrl) {
+                        document.getElementById('news-image').src = data.newsImgUrl;
+                        document.getElementById('news-image').style.display = 'block';
+                    }
+                }
+            }
+        } catch(e) {}
+        
+        await fetchPublicCounts(); // Carga las 3 ventanas de forma económica
+    };
+
+   async function fetchPublicCounts() {
+        try {
+            const snapM = await getCountFromServer(collection(db, "desaparecidos"));
+            const countM = snapM.data().count;
+            document.getElementById('pub-count-miss').innerText = countM;
+
+            const snapF = await getCountFromServer(collection(db, "encontrados"));
+            const countF = snapF.data().count;
+            document.getElementById('pub-count-fnd').innerText = countF;
+
+            const qFam = query(collection(db, "encontrados"), where("reunificado", "==", true));
+            const snapFam = await getCountFromServer(qFam);
+            document.getElementById('pub-count-fam').innerText = snapFam.data().count;
+
+            document.getElementById('pub-count-total').innerText = countM + countF;
+
+            // Iniciar carga de listados públicos
+            loadPubMiss();
+            loadPubFnd();
+            loadPubFam();
+        } catch(e) { console.log("Error cargando estadísticas."); }
+    }
+
+    // Funciones para cargar fichas en la vista principal
+    window.loadPubMiss = async () => {
+        let q = pubLastMiss 
+            ? query(collection(db, "desaparecidos"), orderBy("fecha_timestamp", "desc"), startAfter(pubLastMiss), limit(10))
+            : query(collection(db, "desaparecidos"), orderBy("fecha_timestamp", "desc"), limit(10));
+        
+        const snap = await getDocs(q);
+        if(snap.empty) return;
+        pubLastMiss = snap.docs[snap.docs.length - 1];
+
+        snap.forEach(d => {
+            const f = d.data();
+            const img = f.fotoP ? `<img src="${f.fotoP}" class="ficha-img">` : '';
+            document.getElementById('pub-list-miss').innerHTML += `
+                <div class="public-ficha">
+                    ${img}
+                    <strong>${f.nombre} ${f.apellido}</strong>
+                    <span>C.I: ${f.cedula} | Edad: ${f.edad}</span>
+                    <span>Vestimenta: ${f.vestimenta || 'No detallada'}</span>
+                </div>`;
+        });
+    };
+
+    window.loadPubFnd = async () => {
+        let q = pubLastFnd 
+            ? query(collection(db, "encontrados"), orderBy("fecha_timestamp", "desc"), startAfter(pubLastFnd), limit(10))
+            : query(collection(db, "encontrados"), orderBy("fecha_timestamp", "desc"), limit(10));
+        
+        const snap = await getDocs(q);
+        if(snap.empty) return;
+        pubLastFnd = snap.docs[snap.docs.length - 1];
+
+        snap.forEach(d => {
+            const f = d.data();
+            const img = f.fotoP ? `<img src="${f.fotoP}" class="ficha-img">` : '';
+            document.getElementById('pub-list-fnd').innerHTML += `
+                <div class="public-ficha">
+                    ${img}
+                    <strong>${f.nombre} ${f.apellido}</strong>
+                    <span>Edo. ${f.estado}, ${f.municipio}</span>
+                    <strong style="color: ${f.condicion.includes('Crítico') ? 'red' : 'green'};">${f.condicion}</strong>
+                </div>`;
+        });
+    };
+
+    window.loadPubFam = async () => {
+        let q = pubLastFam 
+            ? query(collection(db, "encontrados"), where("reunificado", "==", true), orderBy("fecha_timestamp", "desc"), startAfter(pubLastFam), limit(10))
+            : query(collection(db, "encontrados"), where("reunificado", "==", true), orderBy("fecha_timestamp", "desc"), limit(10));
+        
+        const snap = await getDocs(q);
+        if(snap.empty) return;
+        pubLastFam = snap.docs[snap.docs.length - 1];
+
+        snap.forEach(d => {
+            const f = d.data();
+            document.getElementById('pub-list-fam').innerHTML += `
+                <div class="public-ficha" style="border-left: 5px solid var(--green-main);">
+                    <strong>${f.nombre} ${f.apellido}</strong>
+                    <span>Localizado en: ${f.estado}</span>
+                    <span style="color:var(--green-main); font-weight:bold;">Familia Contactada ✔️</span>
+                </div>`;
+        });
+    };
+
+    window.showSection = (id) => {
+        document.querySelectorAll('.section-card').forEach(s => s.classList.remove('active'));
+        document.getElementById(id).classList.add('active');
+    };
+
+    async function processImg(file, folder) {
+        if (!file) return "";
+        try {
+            const options = { maxSizeMB: 0.15, maxWidthOrHeight: 800, useWebWorker: true };
+            const comp = await imageCompression(file, options);
+            const sRef = ref(storage, `${folder}/${Date.now()}_${comp.name}`);
+            await uploadBytes(sRef, comp);
+            return await getDownloadURL(sRef);
+        } catch (e) { return ""; }
+    }
+
+    window.handleMissingSubmit = async (e) => {
+        e.preventDefault();
+        const btn = document.getElementById('btn_missing');
+        btn.innerText = "Procesando..."; btn.disabled = true;
+
+        try {
+            const fotoP = await processImg(document.getElementById('m_foto_persona').files[0], "fotos_miss");
+            const fotoC = await processImg(document.getElementById('m_foto_cedula').files[0], "docs_miss");
+
+            await addDoc(collection(db, "desaparecidos"), {
+                nombre: document.getElementById('m_nombre').value.toUpperCase(),
+                apellido: document.getElementById('m_apellido').value.toUpperCase(),
+                cedula: document.getElementById('m_cedula').value.replace(/\D/g, ''),
+                edad: document.getElementById('m_edad').value,
+                sexo: document.getElementById('m_sexo').value,
+                vestimenta: document.getElementById('m_vestimenta').value,
+                fotoP: fotoP, fotoC: fotoC,
+                fam_nombre: document.getElementById('f_nombre_completo').value,
+                fam_tel: document.getElementById('f_telefono').value,
+                fecha_timestamp: Date.now()
+            });
+            alert('Registro guardado.');
+            document.getElementById('form-missing').reset();
+            fetchPublicCounts();
+        } catch (err) { alert("Error de conexión."); }
+        btn.innerText = "Registrar Desaparecido"; btn.disabled = false;
+    };
+
+    window.handleFoundSubmit = async (e) => {
+        e.preventDefault();
+        const btn = document.getElementById('btn_found');
+        btn.innerText = "Procesando..."; btn.disabled = true;
+
+        try {
+            const fotoP = await processImg(document.getElementById('e_foto_persona').files[0], "fotos_fnd");
+            const fotoC = await processImg(document.getElementById('e_foto_cedula').files[0], "docs_fnd");
+
+            await addDoc(collection(db, "encontrados"), {
+                nombre: document.getElementById('e_nombre').value.toUpperCase(),
+                apellido: document.getElementById('e_apellido').value.toUpperCase(),
+                cedula: document.getElementById('e_cedula').value.replace(/\D/g, ''),
+                edad: document.getElementById('e_edad').value,
+                sexo: document.getElementById('e_sexo').value,
+                condicion: document.getElementById('e_condicion').value,
+                estado: document.getElementById('e_estado').value.toUpperCase(),
+                municipio: document.getElementById('e_municipio').value.toUpperCase(),
+                fotoP: fotoP, fotoC: fotoC,
+                publicado: false, // Control de publicación pública
+                reunificado: false, // Control de contacto
+                fecha_timestamp: Date.now()
+            });
+            alert('Registro guardado.');
+            document.getElementById('form-found').reset();
+            fetchPublicCounts();
+        } catch (err) { alert("Error de conexión."); }
+        btn.innerText = "Registrar Encontrado"; btn.disabled = false;
+    };
+
+   // Funciones del Panel Administrativo (Seguridad Firebase Auth)
+    window.loginAdmin = async () => {
+        const email = document.getElementById('admin_user').value.trim();
+        const pass = document.getElementById('admin_pass').value;
+        const btn = document.querySelector('#admin-login button');
+        
+        if (!email || !pass) return alert('Por favor, ingresa correo y contraseña.');
+        
+        btn.innerText = "Verificando...";
+        btn.disabled = true;
+
+        try {
+            await signInWithEmailAndPassword(auth, email, pass);
+            document.getElementById('public-view').style.display = 'none';
+            document.getElementById('admin-dashboard').style.display = 'block';
+            loadAdminData(true);
+        } catch (error) {
+            alert('Acceso denegado: Correo o contraseña incorrectos.');
+            console.error("Error de Auth:", error.code);
+        }
+        
+        btn.innerText = "Acceder";
+        btn.disabled = false;
+    };
+
+    window.cerrarSesion = async () => {
+        try {
+            await signOut(auth);
+            document.getElementById('public-view').style.display = 'block';
+            document.getElementById('admin-dashboard').style.display = 'none';
+            document.getElementById('admin_user').value = '';
+            document.getElementById('admin_pass').value = '';
+        } catch (error) {
+            alert('Hubo un problema al cerrar la sesión.');
+        }
+    };
+    window.switchAdminTab = (tabId) => {
+        document.querySelectorAll('.admin-tab-content').forEach(t => t.classList.remove('active'));
+        document.getElementById(tabId).classList.add('active');
+    };
+
+    window.copyPhone = (phone) => { navigator.clipboard.writeText(phone); alert("Copiado: " + phone); };
+
+    // PAGINACIÓN Y CARGA
+    window.loadAdminData = async (isReset = false) => {
+        if(isReset) {
+            document.getElementById('miss-grid').innerHTML = "";
+            document.getElementById('fnd-grid').innerHTML = "";
+            lastMissDoc = null; lastFndDoc = null;
+        }
+        await loadMoreMiss();
+        await loadMoreFnd();
+    };
+
+    window.loadMoreMiss = async () => {
+        let q;
+        if(lastMissDoc) q = query(collection(db, "desaparecidos"), orderBy("fecha_timestamp", "desc"), startAfter(lastMissDoc), limit(50));
+        else q = query(collection(db, "desaparecidos"), orderBy("fecha_timestamp", "desc"), limit(50));
+        
+        const snap = await getDocs(q);
+        if(snap.empty) return;
+        lastMissDoc = snap.docs[snap.docs.length - 1];
+
+        let html = "";
+        snap.forEach(docSnap => {
+            const d = docSnap.data();
+            html += `<div class="data-card search-item" data-text="${d.nombre} ${d.apellido} ${d.cedula}" data-sex="${d.sexo}">
+                <div class="tag" style="background:var(--red-main);">BUSCADO</div>
+                <h4>${d.nombre} ${d.apellido}</h4>
+                <p><strong>C.I:</strong> ${d.cedula} | <strong>Edad:</strong> ${d.edad}</p>
+                <div style="margin-top:10px; background:#f0f0f0; padding:8px; border-radius:4px;">
+                    <p style="margin:0; font-size:12px;"><strong>Familiar:</strong> ${d.fam_nombre}</p>
+                    <button class="btn-sm btn-dark" style="margin-top:5px; border:none; cursor:pointer;" onclick="copyPhone('${d.fam_tel}')">📋 ${d.fam_tel}</button>
+                </div>
+            </div>`;
+        });
+        document.getElementById('miss-grid').innerHTML += html;
+    };
+
+    window.loadMoreFnd = async () => {
+        let q;
+        if(lastFndDoc) q = query(collection(db, "encontrados"), orderBy("fecha_timestamp", "desc"), startAfter(lastFndDoc), limit(50));
+        else q = query(collection(db, "encontrados"), orderBy("fecha_timestamp", "desc"), limit(50));
+        
+        const snap = await getDocs(q);
+        if(snap.empty) return;
+        lastFndDoc = snap.docs[snap.docs.length - 1];
+
+        let html = "";
+        let cIleso = parseInt(document.getElementById('stat-ileso').innerText) || 0;
+        let cCrit = parseInt(document.getElementById('stat-critico').innerText) || 0;
+
+        snap.forEach(docSnap => {
+            const f = docSnap.data();
+            const id = docSnap.id;
+            let isCrit = f.condicion.includes('Herido') || f.condicion.includes('Crítico');
+            if(isCrit) cCrit++; else cIleso++;
+            
+            let btnPub = f.publicado 
+                ? `<button class="btn-sm btn-dark" disabled>✅ Ya Publicado</button>` 
+                : `<button class="btn-sm btn-green" style="border:none; cursor:pointer;" onclick="publicarFnd('${id}', this)">📢 Publicar en Web</button>`;
+
+            html += `<div class="data-card search-item ${isCrit ? 'card-critico' : ''}" data-text="${f.nombre} ${f.apellido} ${f.cedula}" data-sex="${f.sexo}">
+                <div class="tag" style="background:var(--blue-main);">ENCONTRADO</div>
+                <h4>${f.nombre} ${f.apellido}</h4>
+                <p><strong>C.I:</strong> ${f.cedula} | <strong>Ubicación:</strong> ${f.estado}</p>
+                <p style="margin-top:5px;"><strong style="color:${isCrit ? 'red' : 'green'};">⚕️ ${f.condicion}</strong></p>
+                <div style="margin-top:10px;">${btnPub}</div>
+            </div>`;
+        });
+        document.getElementById('fnd-grid').innerHTML += html;
+        document.getElementById('stat-ileso').innerText = cIleso;
+        document.getElementById('stat-critico').innerText = cCrit;
+    };
+
+    // Publicar Encontrado en el panel Principal
+    window.publicarFnd = async (docId, btn) => {
+        try {
+            await updateDoc(doc(db, "encontrados", docId), { publicado: true });
+            btn.innerText = "✅ Ya Publicado"; btn.disabled = true; btn.className = "btn-sm btn-dark";
+            alert("Persona publicada en la galería pública.");
+        } catch(e) { alert("Error publicando."); }
+    };
+
+    // Cargar Galería Pública de Encontrados
+    window.loadPublicGallery = async () => {
+        document.getElementById('public-gallery-grid').innerHTML = "Buscando datos oficiales...";
+        try {
+            const q = query(collection(db, "encontrados"), where("publicado", "==", true), limit(30));
+            const snap = await getDocs(q);
+            if(snap.empty) { document.getElementById('public-gallery-grid').innerHTML = "No hay localizaciones públicas recientes."; return; }
+            
+            let html = "";
+            snap.forEach(d => {
+                let f = d.data();
+                html += `<div class="data-card">
+                    <div class="tag" style="background:var(--green-main);">LOCALIZADO OFICIALMENTE</div>
+                    <h4 style="font-size:18px;">${f.nombre} ${f.apellido}</h4>
+                    <p><strong>Ubicación:</strong> Edo. ${f.estado}, ${f.municipio}</p>
+                    <p><strong>Condición:</strong> ${f.condicion}</p>
+                </div>`;
+            });
+            document.getElementById('public-gallery-grid').innerHTML = html;
+        } catch(e) { document.getElementById('public-gallery-grid').innerHTML = "Error de carga."; }
+    };
+
+    // Cruce de Datos (Limitado a los últimos 1000 para no reventar la cuota gratuita)
+    window.analyzeMatches = async () => {
+        let container = document.getElementById('match-container');
+        container.innerHTML = "Descargando lotes para análisis... (Esto puede tomar unos segundos)";
+        
+        try {
+            const qM = query(collection(db, "desaparecidos"), orderBy("fecha_timestamp", "desc"), limit(1000));
+            const qF = query(collection(db, "encontrados"), orderBy("fecha_timestamp", "desc"), limit(1000));
+            
+            const [snapM, snapF] = await Promise.all([getDocs(qM), getDocs(qF)]);
+            
+            let arrM = []; snapM.forEach(d => arrM.push({id: d.id, ...d.data()}));
+            let arrF = []; snapF.forEach(d => arrF.push({id: d.id, ...d.data()}));
+            
+            container.innerHTML = ""; let count = 0;
+
+            arrM.forEach(m => {
+                arrF.forEach(f => {
+                    if(f.reunificado) return; // Ignorar si ya fue devuelto a su familia
+
+                    let prob = 0;
+                    if (m.cedula === f.cedula && m.cedula !== "") { prob = 100; }
+                    else {
+                        if (m.apellido === f.apellido) prob += 40;
+                        if (m.nombre === f.nombre) prob += 40;
+                        if (m.edad === f.edad) prob += 10;
+                    }
+
+                    if(prob >= 50) {
+                        count++;
+                        let linkWa = `https://wa.me/58${m.fam_tel.replace(/^0/,'')}?text=Aviso:%20Su%20familiar%20${m.nombre}%20ha%20sido%20localizado%20en%20${f.estado}.`;
+
+                        container.innerHTML += `
+                            <div class="match-card">
+                                <div>
+                                    <h3 style="margin-top:0; color:var(--green-main);">✔️ Coincidencia: ${prob}%</h3>
+                                    <p><strong>Buscado:</strong> ${m.nombre} ${m.apellido} (C.I: ${m.cedula})</p>
+                                    <div style="background:#e3f2fd; padding:10px; border-radius:6px; border:1px solid #90caf9;">
+                                        <p style="margin:2px 0;"><strong>Familiar:</strong> ${m.fam_nombre} ☎ ${m.fam_tel}</p>
+                                        <a href="${linkWa}" target="_blank" class="wa-btn">💬 Notificar (WhatsApp)</a>
+                                    </div>
+                                </div>
+                                <div style="border-left: 2px dashed #ccc; padding-left: 20px;">
+                                    <h4 style="margin-top:0; color:var(--blue-main);">🔍 Encontrado Como</h4>
+                                    <p><strong>${f.nombre} ${f.apellido}</strong> (C.I: ${f.cedula})</p>
+                                    <p>Edo. ${f.estado}, ${f.municipio}</p>
+                                    <p><strong>Condición:</strong> ${f.condicion}</p>
+                                    <button class="btn-dark" style="margin-top:10px; padding:8px; border:none; border-radius:4px; cursor:pointer;" onclick="marcarReunificado('${f.id}', this)">✔️ Confirmar Reunión</button>
+                                </div>
+                            </div>
+                        `;
+                    }
+                });
+            });
+            if(count === 0) container.innerHTML = "<p>No hay coincidencias sin resolver en el lote reciente.</p>";
+        } catch(e) { container.innerHTML = "Error ejecutando el algoritmo cruzado."; }
+    };
+
+    // Marcar como Reunificado y sumar a estadística
+    window.marcarReunificado = async (docId, btn) => {
+        if(!confirm("¿Confirmas que el familiar ha sido contactado? Esto quitará el reporte de la búsqueda cruzada.")) return;
+        try {
+            await updateDoc(doc(db, "encontrados", docId), { reunificado: true });
+            btn.closest('.match-card').style.display = 'none';
+            alert("Familia reunificada con éxito. Se sumará al contador oficial.");
+            fetchPublicCounts();
+        } catch(e) { alert("Error de red."); }
+    };
+
+    // Reinicio Total de la Base de Datos (Seguridad Extrema)
+    window.reiniciarTodo = async () => {
+        let code = prompt("⚠️ ZONA DE PELIGRO: Esto borrará TODOS los registros de Firebase.\nEscribe la palabra 'BORRAR' en mayúsculas para continuar:");
+        if(code !== "BORRAR") return alert("Operación cancelada.");
+        
+        try {
+            const desapSnap = await getDocs(collection(db, "desaparecidos"));
+            desapSnap.forEach(d => deleteDoc(doc(db, "desaparecidos", d.id)));
+            
+            const encSnap = await getDocs(collection(db, "encontrados"));
+            encSnap.forEach(d => deleteDoc(doc(db, "encontrados", d.id)));
+            
+            alert("Base de datos completamente formateada.");
+            window.location.reload();
+        } catch(e) { alert("Error formateando la base de datos."); }
+    };
+
+    // Filtros locales en Pestañas
+    window.filterAdvanced = (inId, selId, gId) => {
+        let txt = document.getElementById(inId).value.toUpperCase();
+        let sex = document.getElementById(selId).value;
+        let items = document.getElementById(gId).getElementsByClassName('search-item');
+        for(let i=0; i<items.length; i++) {
+            let mTxt = items[i].getAttribute('data-text').includes(txt);
+            let mSex = sex === "" || items[i].getAttribute('data-sex') === sex;
+            items[i].style.display = (mTxt && mSex) ? "" : "none";
+        }
+    };
+    window.filterAdvancedFnd = () => filterAdvanced('searchFnd', 'filSexoFnd', 'fnd-grid');
+// Tema Oscuro / Claro
+    window.toggleTheme = () => {
+        document.body.classList.toggle('dark-theme');
+    };
+
+    // Encuestas - Crear (Admin)
+    window.crearEncuesta = async () => {
+        const p = document.getElementById('poll_q').value;
+        const optStr = document.getElementById('poll_opt').value;
+        if(!p || !optStr) return alert("Completa la pregunta y las opciones.");
+        
+        let opciones = {};
+        optStr.split(',').forEach(o => { opciones[o.trim()] = 0; }); // Inicia votos en 0
+
+        try {
+            await addDoc(collection(db, "encuestas"), { pregunta: p, opciones: opciones, fecha: Date.now() });
+            alert("Encuesta Publicada");
+            document.getElementById('poll_q').value = '';
+            document.getElementById('poll_opt').value = '';
+        } catch(e) { alert("Error creando encuesta."); }
+    };
+
+    // Encuestas - Cargar (Público)
+    window.loadPolls = async () => {
+        const cont = document.getElementById('polls-public-container');
+        cont.innerHTML = "Cargando...";
+        try {
+            const q = query(collection(db, "encuestas"), orderBy("fecha", "desc"), limit(5));
+            const snap = await getDocs(q);
+            if(snap.empty) { cont.innerHTML = "No hay encuestas activas."; return; }
+            
+            let html = "";
+            snap.forEach(d => {
+                const e = d.data();
+                html += `<div class="poll-card"><h3>${e.pregunta}</h3>`;
+                for (const [opcion, votos] of Object.entries(e.opciones)) {
+                    html += `<div class="poll-option" onclick="votarEncuesta('${d.id}', '${opcion}')">
+                                <span>${opcion}</span>
+                                <strong>${votos} votos</strong>
+                             </div>`;
+                }
+                html += `</div>`;
+            });
+            cont.innerHTML = html;
+        } catch(err) { cont.innerHTML = "Error cargando encuestas."; }
+    };
+
+    // Encuestas - Votar (Público)
+    window.votarEncuesta = async (id, opcion) => {
+        if(localStorage.getItem('voto_' + id)) return alert("Ya votaste en esta encuesta.");
+        
+        try {
+            const docRef = doc(db, "encuestas", id);
+            // Incrementa el voto usando el index de la opción dinámica
+            await updateDoc(docRef, { [`opciones.${opcion}`]: increment(1) });
+            localStorage.setItem('voto_' + id, 'true'); // Evita multi-voto básico
+            alert("Voto registrado con éxito.");
+            loadPolls(); // Recargar resultados
+        } catch(e) { alert("Error al registrar voto."); }
+    };
+// --- LÓGICA DE NOTICIAS OFICIALES ---
+    window.publicarNoticia = async () => {
+        const text = document.getElementById('news_text').value.trim();
+        const file = document.getElementById('news_img').files[0];
+        
+        if(!text && !file) return alert("Debes escribir una reseña o subir una imagen.");
+        
+        const btn = document.querySelector('button[onclick="publicarNoticia()"]');
+        btn.innerText = "Subiendo archivo y publicando..."; 
+        btn.disabled = true;
+        
+        try {
+            let imgUrl = "";
+            if (file) { 
+                // Usamos la misma función de compresión que ya tienes creada
+                imgUrl = await processImg(file, "noticias"); 
+            }
+            
+            // Guardamos en la base de datos de configuraciones (merge: true actualiza sin borrar lo demás)
+            await setDoc(doc(db, "config", "ui"), { 
+                newsText: text, 
+                newsImgUrl: imgUrl 
+            }, { merge: true });
+            
+            alert("Noticia publicada correctamente. Todos los usuarios la verán al recargar.");
+            document.getElementById('news_text').value = '';
+            document.getElementById('news_img').value = '';
+        } catch(e) { 
+            alert("Error de conexión al intentar subir la noticia."); 
+        }
+        
+        btn.innerText = "Publicar Noticia"; 
+        btn.disabled = false;
+    };
+
+    window.borrarNoticia = async () => {
+        if(!confirm("¿Estás seguro de quitar la noticia pública de la pantalla principal?")) return;
+        try {
+            await setDoc(doc(db, "config", "ui"), { newsText: "", newsImgUrl: "" }, { merge: true });
+            document.getElementById('news-banner').style.display = 'none';
+            alert("Noticia retirada. Actualiza la página para ver los cambios.");
+        } catch(e) {
+            alert("Error al intentar retirar la noticia.");
+        }
+    };
+</script>
+</body>
+</html>

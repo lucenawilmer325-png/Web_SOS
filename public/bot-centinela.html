@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CENTINELA SOS VENEZUELA - Bot Autónomo</title>
+    <style>
+        :root {
+            --red-main: #d32f2f;
+            --blue-main: #1976d2;
+            --green-main: #2e7d32;
+            --dark-main: #121212;
+            --bg-color: #0a0a0a;
+            --surface: #1e1e1e;
+        }
+        * { box-sizing: border-box; font-family: 'Segoe UI', Roboto, Arial, sans-serif; }
+        body { 
+            margin: 0; padding: 20px; background-color: var(--bg-color); color: #00ff00; 
+            font-family: 'Courier New', Courier, monospace;
+        } 
+        
+        .header-card { background: var(--surface); padding: 30px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,255,0,0.1); text-align: center; margin-bottom: 20px; border: 1px solid #00ff00; }
+        h1 { color: #00ff00; font-size: 2rem; margin: 0 0 5px 0; text-transform: uppercase; letter-spacing: 2px;}
+        
+        .btn { padding: 12px 20px; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: bold; color: white; text-transform: uppercase; transition: 0.2s; }
+        .btn-green { background: var(--green-main); } .btn-green:hover { background: #1b5e20; }
+        .btn-red { background: var(--red-main); } .btn-red:hover { background: #b71c1c; }
+        .btn-dark { background: #333; } .btn-dark:hover { background: #555; }
+        
+        input { width: 100%; padding: 12px; margin: 5px 0 15px 0; border: 1px solid #00ff00; border-radius: 6px; font-size: 15px; background: #000; color: #00ff00; }
+        input:focus { outline: none; box-shadow: 0 0 8px #00ff00; }
+        label { font-weight: bold; font-size: 13px; color: #aaa; }
+
+        /* Tarjetas de Coincidencia (Estilo Admin) */
+        .match-card { border: 2px solid var(--green-main); background: #f1f8e9; color: #333; padding: 20px; border-radius: 12px; margin-bottom: 15px; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; font-family: 'Segoe UI', Arial, sans-serif; box-shadow: 0 4px 10px rgba(0,0,0,0.2); animation: flashPulse 2s infinite; }
+        @keyframes flashPulse { 0% { box-shadow: 0 0 5px #00ff00; } 50% { box-shadow: 0 0 20px #00ff00; } 100% { box-shadow: 0 0 5px #00ff00; } }
+        @media (max-width: 768px) { .match-card { grid-template-columns: 1fr; } }
+        
+        .wa-btn { background: #25D366; color: white; text-decoration: none; padding: 8px 15px; border-radius: 20px; font-weight: bold; font-size: 13px; display: inline-block; margin-top: 10px; cursor:pointer; border:none;}
+
+        #console-log { background: #000; color: #00ff00; padding: 15px; border: 1px solid #333; height: 150px; overflow-y: scroll; font-size: 12px; margin-bottom: 20px; border-radius: 6px; }
+    </style>
+</head>
+<body>
+
+<audio id="alarm-sound" src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3" preload="auto"></audio>
+
+<div id="bot-login-view" style="display: flex; height: 90vh; align-items: center; justify-content: center;">
+    <div class="header-card" style="width: 100%; max-width: 400px;">
+        <h1>CENTINELA SOS</h1>
+        <p style="color: #aaa; margin-bottom: 20px;">Acceso Requerido para Operaciones Autonómas</p>
+        <div style="text-align: left;">
+            <label>Correo (Administrador):</label>
+            <input type="email" id="bot_user" placeholder="admin@gmail.com">
+            <label>Contraseña:</label>
+            <input type="password" id="bot_pass" placeholder="••••••••">
+            <button id="btn_login" class="btn btn-green" onclick="iniciarBot()" style="width:100%; margin-top: 10px;">Activar Centinela</button>
+        </div>
+    </div>
+</div>
+
+<div id="bot-dashboard" style="display: none; max-width: 1000px; margin: auto;">
+    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #333; padding-bottom: 15px; margin-bottom: 20px;">
+        <h2 style="margin: 0;">🤖 Módulo de Escaneo en Segundo Plano</h2>
+        <div>
+            <span id="status-indicator" style="color:#00ff00; font-weight:bold; margin-right: 15px;">🟢 ACTIVO (Escaneando cada 60 seg)</span>
+            <button class="btn btn-red" onclick="apagarBot()">Apagar Bot</button>
+        </div>
+    </div>
+
+    <div id="console-log">
+        <p style="margin:2px 0;">[SISTEMA] Centinela iniciado y a la espera de instrucciones...</p>
+    </div>
+
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+        <h3 style="margin: 0; color: #fff;">Coincidencias Detectadas:</h3>
+        <button class="btn btn-dark" onclick="escanearAhora()">🔍 Forzar Escaneo Ahora</button>
+    </div>
+
+    <div id="match-container">
+        <p style="color:#aaa;">Esperando a la primera ejecución del algoritmo...</p>
+    </div>
+</div>
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+    import { getFirestore, collection, getDocs, doc, updateDoc, query, orderBy, limit, where } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+    import { getAuth, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
+    // PEGA AQUÍ TUS MISMAS CREDENCIALES DE FIREBASE
+    const firebaseConfig = {
+      apiKey: "AIzaSyCtGlQkyIKHTyOd7GK4wVSJX-xE1wG_Ue0",
+      authDomain: "sos-venezuela-f2969.firebaseapp.com",
+      projectId: "sos-venezuela-f2969",
+      storageBucket: "sos-venezuela-f2969.firebasestorage.app",
+      messagingSenderId: "284053614895",
+      appId: "1:284053614895:web:834c1804b5432ae7d031da"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const auth = getAuth(app);
+
+    let scanInterval;
+    let matchesEncontrados = new Set(); 
+    
+    let memoriaBuscados = [];
+    let memoriaEncontrados = [];
+    let ultimoTimestampMiss = 0;
+    let ultimoTimestampFnd = 0;
+    let primerEscaneoHecho = false;
+
+    function logMsg(msg) {
+        const consoleEl = document.getElementById('console-log');
+        const time = new Date().toLocaleTimeString();
+        consoleEl.innerHTML += `<p style="margin:2px 0;">[${time}] ${msg}</p>`;
+        consoleEl.scrollTop = consoleEl.scrollHeight;
+    }
+
+    window.iniciarBot = async () => {
+        let email = document.getElementById('bot_user').value.trim();
+        const pass = document.getElementById('bot_pass').value;
+        const btn = document.getElementById('btn_login');
+        
+        if (email !== "" && !email.includes('@')) email += '@gmail.com';
+        if (!email || !pass) return alert('Datos incompletos.');
+
+        btn.innerText = "Conectando..."; btn.disabled = true;
+
+        try {
+            await signInWithEmailAndPassword(auth, email, pass);
+            document.getElementById('bot-login-view').style.display = 'none';
+            document.getElementById('bot-dashboard').style.display = 'block';
+            
+            logMsg("Autenticación exitosa. Permisos de Administrador concedidos.");
+            arrancarCentinela();
+        } catch (error) {
+            alert('Acceso denegado.');
+            btn.innerText = "Activar Centinela"; btn.disabled = false;
+        }
+    };
+
+    window.apagarBot = async () => {
+        clearInterval(scanInterval);
+        await signOut(auth);
+        window.location.reload();
+    };
+
+    function arrancarCentinela() {
+        escanearAhora(); 
+        // 60000 milisegundos = 60 segundos
+        scanInterval = setInterval(escanearAhora, 60000);
+        logMsg("Temporizador activado. Siguiente escaneo en 60 segundos.");
+    }
+
+    window.escanearAhora = async () => {
+        logMsg(primerEscaneoHecho ? "Buscando nuevos reportes en Firebase..." : "Descargando base de datos a la memoria (Única vez)...");
+        let container = document.getElementById('match-container');
+        
+        try {
+            let qM, qF;
+            
+            if (!primerEscaneoHecho) {
+                qM = query(collection(db, "desaparecidos"), orderBy("fecha_timestamp", "desc"), limit(300));
+                qF = query(collection(db, "encontrados"), orderBy("fecha_timestamp", "desc"), limit(300));
+            } else {
+                qM = query(collection(db, "desaparecidos"), where("fecha_timestamp", ">", ultimoTimestampMiss), orderBy("fecha_timestamp", "desc"));
+                qF = query(collection(db, "encontrados"), where("fecha_timestamp", ">", ultimoTimestampFnd), orderBy("fecha_timestamp", "desc"));
+            }
+            
+            const [snapM, snapF] = await Promise.all([getDocs(qM), getDocs(qF)]);
+            
+            let countNuevosBuscados = 0;
+            let countNuevosEncontrados = 0;
+
+            if (!snapM.empty) {
+                ultimoTimestampMiss = snapM.docs[0].data().fecha_timestamp;
+                snapM.forEach(d => { memoriaBuscados.push({id: d.id, ...d.data()}); countNuevosBuscados++; });
+            }
+            if (!snapF.empty) {
+                ultimoTimestampFnd = snapF.docs[0].data().fecha_timestamp;
+                snapF.forEach(d => { memoriaEncontrados.push({id: d.id, ...d.data()}); countNuevosEncontrados++; });
+            }
+
+            if (primerEscaneoHecho) {
+                logMsg(`Firebase dice: ${countNuevosBuscados} desaparecidos y ${countNuevosEncontrados} encontrados.`);
+                if (countNuevosBuscados === 0 && countNuevosEncontrados === 0) return; 
+            }
+            
+            primerEscaneoHecho = true;
+            let countNuevosCruces = 0;
+            if(container.innerHTML.includes("Esperando")) container.innerHTML = "";
+
+            // COMPARACIÓN BLINDADA CONTRA ERRORES
+            memoriaBuscados.forEach(m => {
+                memoriaEncontrados.forEach(f => {
+                    if(f.reunificado) return;
+
+                    let matchKey = m.id + "_" + f.id;
+                    if(matchesEncontrados.has(matchKey)) return; 
+
+                    let prob = 0;
+                    
+                    // 🛡️ Transformación forzada a Texto para evitar que el bot explote
+                    let mCed = String(m.cedula || "").trim();
+                    let fCed = String(f.cedula || "").trim();
+                    let mNomArr = String(m.nombre || "").toUpperCase().split(" ");
+                    let fNomArr = String(f.nombre || "").toUpperCase().split(" ");
+                    let mApeArr = String(m.apellido || "").toUpperCase().split(" ");
+                    let fApeArr = String(f.apellido || "").toUpperCase().split(" ");
+
+                    if (mCed === fCed && mCed !== "") { 
+                        prob = 100; 
+                    } 
+                    else if (mCed.length >= 5 && fCed.length >= 5) {
+                        let endMatch = mCed.substring(1) === fCed.substring(1) || mCed.substring(1) === fCed || mCed === fCed.substring(1);
+                        let startMatch = mCed.slice(0, -1) === fCed.slice(0, -1) || mCed.slice(0, -1) === fCed || mCed === fCed.slice(0, -1);
+                        if (endMatch || startMatch) prob += 80;
+                    }
+
+                    if (prob < 100) {
+                        if (String(m.nombre) === String(f.nombre) && String(m.nombre) !== "") prob += 40;
+                        else {
+                            let n1 = mNomArr[0] && fNomArr[0] && mNomArr[0] === fNomArr[0];
+                            let n2 = mNomArr[1] && fNomArr[1] && mNomArr[1] === fNomArr[1];
+                            if (n1 && n2) prob += 35; else if (n1) prob += 20;
+                        }
+
+                        if (String(m.apellido) === String(f.apellido) && String(m.apellido) !== "") prob += 40;
+                        else {
+                            let a1 = mApeArr[0] && fApeArr[0] && mApeArr[0] === fApeArr[0];
+                            if (a1) prob += 25;
+                        }
+
+                        if (String(m.edad) === String(f.edad) && String(m.edad) !== "") prob += 10;
+                        else if (m.edad && f.edad && Math.abs(parseInt(m.edad) - parseInt(f.edad)) <= 2) prob += 5;
+                    }
+
+                    if (prob > 99 && mCed !== fCed) prob = 99;
+
+                    if(prob >= 50) {
+                        countNuevosCruces++;
+                        matchesEncontrados.add(matchKey); 
+                        
+                        let famTelTxt = String(m.fam_tel || "");
+                        let linkWa = `https://wa.me/58${famTelTxt.replace(/^0/,'')}?text=Aviso:%20Su%20familiar%20${m.nombre}%20ha%20sido%20localizado%20en%20${f.estado}.`;
+                        let colorProb = prob >= 90 ? "var(--green-main)" : "#ff9800"; 
+
+                        let htmlCruce = `
+                            <div class="match-card" id="card_${matchKey}">
+                                <div>
+                                    <h3 style="margin-top:0; color:${colorProb};">
+                                        ${prob >= 90 ? '✔️' : '⚠️'} Coincidencia: ${prob}%
+                                    </h3>
+                                    <p><strong>Buscado:</strong> ${m.nombre} ${m.apellido} (C.I: ${m.cedula})</p>
+                                    <div style="background:#e3f2fd; padding:10px; border-radius:6px; border:1px solid #90caf9;">
+                                        <p style="margin:2px 0;"><strong>Familiar:</strong> ${m.fam_nombre} ☎ ${m.fam_tel}</p>
+                                        <a href="${linkWa}" target="_blank" class="wa-btn">💬 Notificar (WhatsApp)</a>
+                                    </div>
+                                </div>
+                                <div style="border-left: 2px dashed #ccc; padding-left: 20px;">
+                                    <h4 style="margin-top:0; color:var(--blue-main);">🔍 Encontrado Como</h4>
+                                    <p><strong>${f.nombre} ${f.apellido}</strong> (C.I: ${f.cedula})</p>
+                                    <p>Edo. ${f.estado}, ${f.municipio}</p>
+                                    <p><strong>Condición:</strong> ${f.condicion}</p>
+                                    <div style="display: flex; gap: 10px; margin-top:10px;">
+                                        <button class="btn-dark" style="flex: 1; padding:8px; border:none; border-radius:4px; cursor:pointer;" onclick="marcarReunificadoBot('${f.id}', '${m.fam_nombre}', '${m.fam_tel}', 'card_${matchKey}')">✔️ Confirmar</button>
+                                        <button class="btn-red" style="padding:8px; border:none; border-radius:4px; cursor:pointer;" onclick="document.getElementById('card_${matchKey}').style.display='none'">❌ Descartar</button>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                        container.insertAdjacentHTML('afterbegin', htmlCruce);
+                    }
+                });
+            });
+
+            if (countNuevosCruces > 0) {
+                logMsg(`🚨 CRUCE ENCONTRADO: ${countNuevosCruces} nuevas coincidencias.`);
+                document.getElementById('alarm-sound').play().catch(e => logMsg("Aviso: Haz un clic en la pantalla para permitir la alarma sonora."));
+            }
+
+        } catch(e) { 
+            // AHORA EL ERROR SERÁ VISIBLE PARA SABER EXACTAMENTE QUÉ FALLA
+            logMsg(`<span style='color:red;'>⚠️ Error interno del sistema: ${e.message}</span>`); 
+        }
+    };
+
+    window.marcarReunificadoBot = async (docId, famNombre, famTel, cardId) => {
+        if(!confirm("¿Confirmas la reunión? Esto modificará la base de datos oficial en Firebase.")) return;
+        try {
+            await updateDoc(doc(db, "encontrados", docId), { 
+                reunificado: true,
+                fam_nombre: famNombre,
+                fam_tel: famTel
+            });
+            document.getElementById(cardId).style.display = 'none';
+            logMsg(`Reunificación confirmada. ID de ficha: ${docId}`);
+        } catch(e) { alert("Error de conexión al confirmar."); }
+    };
+
+</script>
+</body>
+</html>
