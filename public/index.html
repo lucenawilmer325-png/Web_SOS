@@ -1391,7 +1391,7 @@ window.handleFoundSubmit = async (e) => {
                 }
             }
             
-            // 7. Limpiar la línea para extraer SOLO el Nombre y Apellido
+         // 7. Limpiar la línea para extraer SOLO el Nombre y Apellido
             // Borramos de la línea todo lo que ya extrajimos para que no se mezcle con los nombres
             let nombreBruto = lineaUpper
                 .replace(cedula, '')
@@ -1400,6 +1400,7 @@ window.handleFoundSubmit = async (e) => {
                 .replace(direccion, '')
                 .replace(/\b(MASCULINO|FEMENINO|MASC|FEM|HOMBRE|MUJER|M|F)\b/g, '')
                 .replace(new RegExp(`\\b${edad}\\b`, 'g'), '') 
+                .replace(/[,;\t\-]/g, ' ') // 🛠️ REPARACIÓN: Convierte comas o separadores de Excel en espacios
                 .replace(/[^A-ZÁÉÍÓÚÑ\s]/g, '') // Borramos símbolos raros
                 .replace(/\s+/g, ' ').trim(); // Quitamos espacios dobles
                 
