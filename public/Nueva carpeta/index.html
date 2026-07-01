@@ -4,6 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SOS VENEZUELA - Búsqueda y Rescate</title>
+<meta name="google-site-verification" content="djTTcoD4oKAymugjGRgkKDhY5KbsL9K56MP0Yufmzns" />
+
+
+  <meta name="description" content="Plataforma de emergencia para el registro y búsqueda de personas desaparecidas y encontradas en hospitales y refugios de Venezuela.">
+    <meta name="keywords" content="SOS Venezuela, desaparecidos, encontrados, hospitales, refugios, emergencia, rescate">
+    <meta name="author" content="SOS Venezuela">
    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/browser-image-compression@2.0.1/dist/browser-image-compression.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
@@ -221,7 +227,7 @@
         
                 <div style="background:#fff3e0; padding:15px; border-radius:8px; margin-bottom:20px; border: 1px dashed #ff9800;">
             <p style="margin-top:0; font-size:13px; color:#555;"><strong>⚡ Escanear con Cámara:</strong> Toma una foto a una hoja impresa para extraer y registrar múltiples personas a la vez. (Formato sugerido: <em>Nombre, Cédula, Edad, Sexo</em>).</p>
-            <input type="file" id="img_pub_miss" accept="image/*" capture="environment" style="margin-bottom:10px; width: 100%; background: white; padding: 10px; border-radius: 6px;">
+            <input type="file" id="img_pub_miss" accept="image/*" style="margin-bottom:10px; width: 100%; background: white; padding: 10px; border-radius: 6px;">
             <button class="btn btn-dark btn-sm" style="background:#ff9800; border:none; padding:10px; width: 100%; margin-bottom:15px;" onclick="escanearFoto('miss')">📷 Extraer de Imagen con IA</button>
             
             <p style="margin:0 0 10px 0; font-size:13px; color:#555;"><strong>📄 O Subir Lista en Documento:</strong> (PDF, Excel, CSV)</p>
@@ -259,7 +265,7 @@
 
                 <div style="background:#fff3e0; padding:15px; border-radius:8px; margin-bottom:20px; border: 1px dashed #ff9800;">
             <p style="margin-top:0; font-size:13px; color:#555;"><strong>⚡ Escanear con Cámara:</strong> Toma una foto a una hoja impresa de personas localizadas para registrar varias fichas a la vez.</p>
-<input type="file" id="img_pub_fnd" accept="image/*" capture="environment" style="margin-bottom:10px; width: 100%; background: white; padding: 10px; border-radius: 6px;">
+<input type="file" id="img_pub_fnd" accept="image/*" style="margin-bottom:10px; width: 100%; background: white; padding: 10px; border-radius: 6px;">
             <button class="btn btn-dark btn-sm" style="background:#ff9800; border:none; padding:10px; width: 100%; margin-bottom: 15px;" onclick="escanearFoto('fnd')">📷 Extraer de Imagen con IA</button>
             
             <p style="margin:0 0 10px 0; font-size:13px; color:#555;"><strong>📄 O Subir Lista en Documento:</strong> (PDF, Excel, CSV)</p>
@@ -1327,63 +1333,114 @@ window.handleFoundSubmit = async (e) => {
     // MOTOR UNIFICADO DE ESCANEO (FOTOS, PDF, EXCEL) CON EDICIÓN
     // ============================================================================
     let listaEscaneadaPendiente = [];
-
-    // --- 1. FUNCIÓN COMPARTIDA PARA ANALIZAR EL TEXTO ---
+// --- 1. SÚPER MOTOR DE EXTRACCIÓN CON IA (Reconoce Teléfonos, Estados y Lugares) ---
     const procesarTextoExtraido = (text, tipo) => {
         const lineas = text.split('\n');
+        
+        // Diccionarios de inteligencia para la IA
+        const estadosVzla = ['AMAZONAS', 'ANZOATEGUI', 'ANZOÁTEGUI', 'APURE', 'ARAGUA', 'BARINAS', 'BOLIVAR', 'BOLÍVAR', 'CARABOBO', 'COJEDES', 'DELTA AMACURO', 'FALCON', 'FALCÓN', 'GUARICO', 'GUÁRICO', 'LARA', 'MERIDA', 'MÉRIDA', 'MIRANDA', 'MONAGAS', 'NUEVA ESPARTA', 'PORTUGUESA', 'SUCRE', 'TACHIRA', 'TÁCHIRA', 'TRUJILLO', 'VARGAS', 'LA GUAIRA', 'YARACUY', 'ZULIA', 'DISTRITO CAPITAL', 'CARACAS'];
+        
+        const lugaresClave = ['HOSPITAL', 'CLINICA', 'CLÍNICA', 'REFUGIO', 'CDI', 'AMBULATORIO', 'IGLESIA', 'COLEGIO', 'ESCUELA', 'CRUZ ROJA', 'PROTECCION CIVIL', 'BOMBEROS', 'PLAZA', 'CENTRO MEDICO', 'CENTRO MÉDICO'];
+
         for(let linea of lineas) {
             if(linea.trim().length < 8) continue;
+            let lineaUpper = linea.toUpperCase().replace(/[,;\t\-_|.]/g, ' ').replace(/\s+/g, ' ');
             
-            let cedulaMatch = linea.match(/\b\d{6,8}\b/);
-            let cedula = cedulaMatch ? cedulaMatch[0] : "0";
+            // 1. Extraer Cédula (Entre 6 y 8 dígitos, evitamos que confunda con teléfonos)
+            let cedulaMatch = lineaUpper.match(/\b([1-9]\d{5,7})\b/);
+            let cedula = cedulaMatch ? cedulaMatch[0] : "";
             
-            let edadMatch = linea.match(/\b([1-9][0-9]?)\b/g);
-            let edad = "No esp.";
+            // 2. Extraer Teléfono (Formatos Vzla: 04141234567, 0424-123-4567, +58412...)
+            let telMatch = lineaUpper.match(/\b(?:04|02|\+58)\d{2}[-\s]?\d{3}[-\s]?\d{4}\b/);
+            let telefono = telMatch ? telMatch[0] : "";
+
+            // 3. Extraer Edad (1 o 2 dígitos que NO sean la cédula ni parte del teléfono)
+            let edadMatch = lineaUpper.match(/\b([1-9][0-9]?)\b/g);
+            let edad = "";
             if(edadMatch) {
-                let posiblesEdades = edadMatch.filter(num => num !== cedula);
+                let posiblesEdades = edadMatch.filter(num => num !== cedula && !telefono.includes(num));
                 if(posiblesEdades.length > 0) edad = posiblesEdades[0];
             }
             
-            let sexoMatch = linea.match(/\b(M|F|MASC|FEM|HOMBRE|MUJER)\b/i);
-            let sexo = "No esp.";
+            // 4. Extraer Sexo
+            let sexoMatch = lineaUpper.match(/\b(MASCULINO|FEMENINO|MASC|FEM|HOMBRE|MUJER|M|F)\b/);
+            let sexo = "";
             if(sexoMatch) {
-                let s = sexoMatch[0].toUpperCase();
+                let s = sexoMatch[0];
                 sexo = (s.startsWith('M') || s.startsWith('H')) ? 'Masculino' : 'Femenino';
             }
+
+            // 5. Extraer Estado de Venezuela
+            let estado = "";
+            for (let est of estadosVzla) {
+                if (lineaUpper.includes(est)) {
+                    estado = (est === 'ANZOÁTEGUI') ? 'ANZOATEGUI' : est; // Normalizamos acentos
+                    break;
+                }
+            }
+
+            // 6. Extraer Dirección (Refugios, Hospitales, etc.)
+            let direccion = "";
+            for (let lugar of lugaresClave) {
+                if (lineaUpper.includes(lugar)) {
+                    // Si encuentra la palabra (ej. "HOSPITAL"), captura esa palabra y las 3 siguientes para tener el nombre completo
+                    let regexLugar = new RegExp(`\\b${lugar}\\s+([A-Z0-9ÁÉÍÓÚÑ]+\\s*){0,3}`, 'i');
+                    let matchLugar = lineaUpper.match(regexLugar);
+                    direccion = matchLugar ? matchLugar[0].trim() : lugar;
+                    break;
+                }
+            }
             
-            let nombreBruto = linea
+         // 7. Limpiar la línea para extraer SOLO el Nombre y Apellido
+            // Borramos de la línea todo lo que ya extrajimos para que no se mezcle con los nombres
+            let nombreBruto = lineaUpper
                 .replace(cedula, '')
-                .replace(/\b(M|F|MASC|FEM|HOMBRE|MUJER)\b/ig, '')
-                .replace(/\b\d{1,2}\b/g, '')
-                .replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑ\s]/g, '') 
-                .replace(/\s+/g, ' ').trim();
+                .replace(telefono, '')
+                .replace(estado, '')
+                .replace(direccion, '')
+                .replace(/\b(MASCULINO|FEMENINO|MASC|FEM|HOMBRE|MUJER|M|F)\b/g, '')
+                .replace(new RegExp(`\\b${edad}\\b`, 'g'), '') 
+                .replace(/[,;\t\-]/g, ' ') // 🛠️ REPARACIÓN: Convierte comas o separadores de Excel en espacios
+                .replace(/[^A-ZÁÉÍÓÚÑ\s]/g, '') // Borramos símbolos raros
+                .replace(/\s+/g, ' ').trim(); // Quitamos espacios dobles
                 
             let partesNombre = nombreBruto.split(' ');
-            let nombre = partesNombre[0] || "DESCONOCIDO";
+            let nombre = partesNombre[0] || "";
             let apellido = partesNombre.slice(1).join(' ') || "";
             
-            if (nombre !== "DESCONOCIDO" || cedula !== "0") {
+            // Si la IA logró rescatar al menos un nombre o una cédula, armamos la ficha
+            if (nombre !== "" || cedula !== "") {
                 let registro = {
-                    nombre: nombre.toUpperCase(), apellido: apellido.toUpperCase(),
-                    cedula: cedula, edad: edad, sexo: sexo, fotoP: "",
+                    nombre: nombre, 
+                    apellido: apellido,
+                    cedula: cedula, 
+                    edad: edad, 
+                    sexo: sexo, 
+                    fotoP: "",
                     fecha_timestamp: Date.now() + listaEscaneadaPendiente.length
                 };
 
+                // Asignación inteligente según el tipo de reporte
                 if (tipo === 'miss') {
-                    registro.vestimenta = "EXTRAÍDO POR SISTEMA";
-                    registro.fam_nombre = "NO ESPECIFICADO";
-                    registro.fam_tel = "NO ESPECIFICADO";
+                    registro.vestimenta = "";
+                    registro.fam_nombre = "";
+                    registro.fam_tel = telefono; // El teléfono extraído va al familiar
                 } else {
-                    registro.condicion = "Estable"; registro.estado = "NO ESPECIFICADO";
-                    registro.municipio = "NO ESPECIFICADO"; registro.direccion_exacta = "EXTRAÍDO POR SISTEMA";
-                    registro.tel_reporta = "NO ESPECIFICADO"; registro.publicado = false; registro.reunificado = false;
+                    registro.condicion = "Estable"; 
+                    registro.estado = estado; // Asignamos el estado
+                    registro.municipio = ""; // Queda manual, a menos que se escriba en el papel
+                    registro.direccion_exacta = direccion; // Asignamos el Hospital/Refugio encontrado
+                    registro.tel_reporta = telefono; // Asignamos el teléfono del que reporta
+                    registro.publicado = false; 
+                    registro.reunificado = false;
                 }
+                
                 listaEscaneadaPendiente.push(registro);
             }
         }
     };
 
-    // --- 2. RENDERIZAR FORMULARIOS CON BOTÓN ELIMINAR ---
+   // --- 2. RENDERIZAR FORMULARIOS CON VALIDACIÓN EN ROJO ---
     window.renderizarFichasPendientes = (tipo) => {
         const previewDiv = document.getElementById(`preview_pub_${tipo}`);
         if (listaEscaneadaPendiente.length === 0) {
@@ -1392,30 +1449,39 @@ window.handleFoundSubmit = async (e) => {
         }
 
         let formHtml = `<div style="max-height: 450px; overflow-y: auto; padding: 10px; border: 1px solid #ccc; border-radius: 8px; margin-top: 10px; background: #fff;">
-            <p>✅ <strong>${listaEscaneadaPendiente.length} personas identificadas.</strong> Verifica, completa los campos en rojo o elimina errores:</p>`;
+            <p>✅ <strong>${listaEscaneadaPendiente.length} personas identificadas.</strong> Verifica y completa los campos obligatorios marcados en rojo:</p>`;
 
-        listaEscaneadaPendiente.forEach((p, index) => {
-            let alertMsg = (p.edad === "No esp." || p.cedula === "0") ? `<span style="color:red; font-size: 11px;">⚠️ Faltan datos</span>` : "";
+        // Estilos de validación
+        const errStyle = "border: 2px solid #ff4d4d; background-color: #ffe6e6;";
+        const okStyle = "border: 1px solid #ccc; background-color: #fff;";
+listaEscaneadaPendiente.forEach((p, index) => {
+            let incompleto = (!p.nombre || !p.cedula || !p.edad || 
+                              (tipo === 'miss' ? (!p.fam_nombre || !p.fam_tel) : (!p.estado || !p.municipio || !p.direccion_exacta || !p.tel_reporta)));
+            
+            let alertMsg = incompleto ? `<span style="color:#ff4d4d; font-size: 13px;">⚠️ Faltan datos</span>` : `<span style="color:green; font-size: 13px;">✔️ Completo</span>`;
 
-            formHtml += `<div style="border: 1px solid #eee; padding: 10px; margin-bottom: 15px; border-radius: 6px; background: #fafafa;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                    <h4 style="margin: 0; color: var(--dark-main);">Ficha #${index + 1} ${alertMsg}</h4>
-                    <button class="btn-sm btn-red" style="border:none; cursor:pointer;" onclick="eliminarFichaPendiente(${index}, '${tipo}')">🗑️ Eliminar</button>
+            formHtml += `<div style="border: 1px solid #ddd; padding: 15px; margin-bottom: 20px; border-radius: 8px; background: #fafafa; box-shadow: 0 4px 10px rgba(0,0,0,0.05);">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 10px;">
+                    <h4 style="margin: 0; color: var(--dark-main); font-size: 16px;">Ficha #${index + 1} ${alertMsg}</h4>
+                    <button class="btn-sm btn-red" style="border:none; cursor:pointer; padding: 8px 15px; font-size: 13px;" onclick="eliminarFichaPendiente(${index}, '${tipo}')">🗑️ Eliminar</button>
                 </div>
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 12px;">
-                    <div><label>Nombre:</label><input type="text" id="scan_nom_${index}" value="${p.nombre}" style="padding:6px;width:100%;margin:0;"></div>
-                    <div><label>Apellido:</label><input type="text" id="scan_ape_${index}" value="${p.apellido}" style="padding:6px;width:100%;margin:0;"></div>
-                    <div><label>Cédula:</label><input type="number" id="scan_ced_${index}" value="${p.cedula !== '0' ? p.cedula : ''}" style="padding:6px;width:100%;margin:0; ${p.cedula === '0' ? 'border: 1px solid red;' : ''}"></div>
-                    <div><label>Edad:</label><input type="text" id="scan_eda_${index}" value="${p.edad !== 'No esp.' ? p.edad : ''}" style="padding:6px;width:100%;margin:0;"></div>`;
+                
+                <div class="form-grid">
+                    <div><label>Nombre:</label><input type="text" id="scan_nom_${index}" value="${p.nombre}" style="padding:12px; width:100%; margin-top:5px; border-radius:6px; font-size:15px; ${!p.nombre ? errStyle : okStyle}"></div>
+                    <div><label>Apellido:</label><input type="text" id="scan_ape_${index}" value="${p.apellido}" style="padding:12px; width:100%; margin-top:5px; border-radius:6px; font-size:15px; ${!p.apellido ? errStyle : okStyle}"></div>
+                    <div><label>Cédula:</label><input type="number" id="scan_ced_${index}" value="${p.cedula}" style="padding:12px; width:100%; margin-top:5px; border-radius:6px; font-size:15px; ${!p.cedula ? errStyle : okStyle}"></div>
+                    <div><label>Edad:</label><input type="text" id="scan_eda_${index}" value="${p.edad}" style="padding:12px; width:100%; margin-top:5px; border-radius:6px; font-size:15px; ${!p.edad ? errStyle : okStyle}"></div>`;
 
             if (tipo === 'miss') {
                 formHtml += `
-                    <div><label>Familiar:</label><input type="text" id="scan_fam_nom_${index}" value="${p.fam_nombre !== 'NO ESPECIFICADO' ? p.fam_nombre : ''}" style="padding:6px;width:100%;margin:0; border: 1px solid red;"></div>
-                    <div><label>Teléfono:</label><input type="tel" id="scan_fam_tel_${index}" value="${p.fam_tel !== 'NO ESPECIFICADO' ? p.fam_tel : ''}" style="padding:6px;width:100%;margin:0; border: 1px solid red;"></div>`;
+                    <div><label>Familiar:</label><input type="text" id="scan_fam_nom_${index}" value="${p.fam_nombre}" style="padding:12px; width:100%; margin-top:5px; border-radius:6px; font-size:15px; ${!p.fam_nombre ? errStyle : okStyle}"></div>
+                    <div><label>Teléfono:</label><input type="tel" id="scan_fam_tel_${index}" value="${p.fam_tel}" style="padding:12px; width:100%; margin-top:5px; border-radius:6px; font-size:15px; ${!p.fam_tel ? errStyle : okStyle}"></div>`;
             } else {
                 formHtml += `
-                    <div><label>Estado Actual:</label><input type="text" id="scan_est_${index}" value="${p.estado !== 'NO ESPECIFICADO' ? p.estado : ''}" style="padding:6px;width:100%;margin:0; border: 1px solid red;"></div>
-                    <div><label>Teléfono Reporta:</label><input type="tel" id="scan_tel_${index}" value="${p.tel_reporta !== 'NO ESPECIFICADO' ? p.tel_reporta : ''}" style="padding:6px;width:100%;margin:0; border: 1px solid red;"></div>`;
+                    <div><label>Estado Actual:</label><input type="text" id="scan_est_${index}" value="${p.estado}" style="padding:12px; width:100%; margin-top:5px; border-radius:6px; font-size:15px; ${!p.estado ? errStyle : okStyle}"></div>
+                    <div><label>Municipio:</label><input type="text" id="scan_mun_${index}" value="${p.municipio}" style="padding:12px; width:100%; margin-top:5px; border-radius:6px; font-size:15px; ${!p.municipio ? errStyle : okStyle}"></div>
+                    <div style="grid-column: 1 / -1;"><label>Dirección Exacta (Refugio, Hospital, etc.):</label><input type="text" id="scan_dir_${index}" value="${p.direccion_exacta}" style="padding:12px; width:100%; margin-top:5px; border-radius:6px; font-size:15px; ${!p.direccion_exacta ? errStyle : okStyle}"></div>
+                    <div><label>Teléfono Reporta:</label><input type="tel" id="scan_tel_${index}" value="${p.tel_reporta}" style="padding:12px; width:100%; margin-top:5px; border-radius:6px; font-size:15px; ${!p.tel_reporta ? errStyle : okStyle}"></div>`;
             }
             formHtml += `</div></div>`;
         });
@@ -1423,8 +1489,7 @@ window.handleFoundSubmit = async (e) => {
         formHtml += `</div><button class="btn btn-green" style="margin-top:15px; width:100%; border:none; padding:12px;" onclick="registrarListaFoto('${tipo}')">🚀 GUARDAR FICHAS COMPLETADAS</button>`;
         previewDiv.innerHTML = formHtml;
     };
-
-    // --- 3. FUNCIÓN PARA ELIMINAR UNA FICHA ESPECÍFICA ---
+ // --- 3. FUNCIÓN PARA ELIMINAR UNA FICHA ESPECÍFICA ---
     window.eliminarFichaPendiente = (index, tipo) => {
         // Rescatar datos tipeados antes de recargar
         for (let i = 0; i < listaEscaneadaPendiente.length; i++) {
@@ -1438,6 +1503,8 @@ window.handleFoundSubmit = async (e) => {
                     listaEscaneadaPendiente[i].fam_tel = document.getElementById(`scan_fam_tel_${i}`).value;
                 } else {
                     listaEscaneadaPendiente[i].estado = document.getElementById(`scan_est_${i}`).value;
+                    listaEscaneadaPendiente[i].municipio = document.getElementById(`scan_mun_${i}`).value;
+                    listaEscaneadaPendiente[i].direccion_exacta = document.getElementById(`scan_dir_${i}`).value;
                     listaEscaneadaPendiente[i].tel_reporta = document.getElementById(`scan_tel_${i}`).value;
                 }
             }
@@ -1508,42 +1575,91 @@ window.handleFoundSubmit = async (e) => {
         } catch (err) { previewDiv.innerHTML = `❌ Error procesando el documento.`; }
     };
 
-    // --- 6. GUARDAR TODO ---
+// --- 6. GUARDAR TODO ---
     window.registrarListaFoto = async (tipo) => {
         if (listaEscaneadaPendiente.length === 0) return;
         if (!confirm(`¿Estás seguro de registrar estas ${listaEscaneadaPendiente.length} fichas?`)) return;
         
+        // 🛠️ PASO 1: LEER TODOS LOS DATOS PRIMERO (Antes de borrar las casillas de la pantalla)
+        for (let i = 0; i < listaEscaneadaPendiente.length; i++) {
+            let p = listaEscaneadaPendiente[i];
+            
+            const inputNom = document.getElementById(`scan_nom_${i}`);
+            const inputApe = document.getElementById(`scan_ape_${i}`);
+            const inputCed = document.getElementById(`scan_ced_${i}`);
+            const inputEda = document.getElementById(`scan_eda_${i}`);
+
+            if (inputNom) p.nombre = inputNom.value.toUpperCase().trim() || "NO ESPECIFICADO";
+            if (inputApe) p.apellido = inputApe.value.toUpperCase().trim() || "NO ESPECIFICADO";
+            if (inputCed) p.cedula = inputCed.value.replace(/\D/g, '') || "0";
+            if (inputEda) p.edad = inputEda.value.trim() || "No esp.";
+            
+            p.sexo = p.sexo || "Masculino";
+            p.fecha_timestamp = Date.now() + i;
+
+            if (tipo === 'miss') {
+                const inputFamNom = document.getElementById(`scan_fam_nom_${i}`);
+                const inputFamTel = document.getElementById(`scan_fam_tel_${i}`);
+                
+                if (inputFamNom) p.fam_nombre = inputFamNom.value.trim() || "NO ESPECIFICADO";
+                if (inputFamTel) p.fam_tel = inputFamTel.value.trim() || "NO ESPECIFICADO";
+            } else {
+                const inputEst = document.getElementById(`scan_est_${i}`);
+                const inputMun = document.getElementById(`scan_mun_${i}`);
+                const inputDir = document.getElementById(`scan_dir_${i}`);
+                const inputTel = document.getElementById(`scan_tel_${i}`);
+
+                if (inputEst) p.estado = inputEst.value.toUpperCase().trim() || "NO ESPECIFICADO";
+                if (inputMun) p.municipio = inputMun.value.toUpperCase().trim() || "NO ESPECIFICADO";
+                if (inputDir) p.direccion_exacta = inputDir.value.trim() || "NO ESPECIFICADO";
+                if (inputTel) p.tel_reporta = inputTel.value.trim() || "NO ESPECIFICADO";
+                
+                p.condicion = p.condicion || "Ileso/Estable";
+                p.publicado = false; // Publicación directa
+                p.reunificado = false;
+            }
+        }
+
+        // 🛠️ PASO 2: AHORA SÍ MOSTRAMOS EL MENSAJE DE CARGA (Ya los datos están a salvo en la memoria)
         const previewDiv = document.getElementById(`preview_pub_${tipo}`);
         previewDiv.innerHTML = `⏳ Registrando en la nube... Por favor, no cierres esta ventana.`;
         
         const coleccionNombre = tipo === 'miss' ? "desaparecidos" : "encontrados";
         let subidos = 0; let errores = 0;
 
+        // 🛠️ PASO 3: ENVIAR A FIREBASE
         for (let i = 0; i < listaEscaneadaPendiente.length; i++) {
-            let p = listaEscaneadaPendiente[i];
-            p.nombre = document.getElementById(`scan_nom_${i}`).value.toUpperCase() || p.nombre;
-            p.apellido = document.getElementById(`scan_ape_${i}`).value.toUpperCase() || p.apellido;
-            p.cedula = document.getElementById(`scan_ced_${i}`).value || "No especificada";
-            p.edad = document.getElementById(`scan_eda_${i}`).value || "No esp.";
-
-            if (tipo === 'miss') {
-                p.fam_nombre = document.getElementById(`scan_fam_nom_${i}`).value || "NO ESPECIFICADO";
-                p.fam_tel = document.getElementById(`scan_fam_tel_${i}`).value || "NO ESPECIFICADO";
-            } else {
-                p.estado = document.getElementById(`scan_est_${i}`).value.toUpperCase() || "NO ESPECIFICADO";
-                p.tel_reporta = document.getElementById(`scan_tel_${i}`).value || "NO ESPECIFICADO";
+            try {
+                await addDoc(collection(db, coleccionNombre), listaEscaneadaPendiente[i]); 
+                subidos++; 
+            } 
+            catch (err) { 
+                console.error("Error subiendo ficha:", err);
+                errores++; 
             }
-
-            try { await addDoc(collection(db, coleccionNombre), p); subidos++; } 
-            catch (err) { errores++; }
         }
 
+        // Limpiar pantalla al terminar
         listaEscaneadaPendiente = []; 
         if (document.getElementById(`img_pub_${tipo}`)) document.getElementById(`img_pub_${tipo}`).value = ""; 
         if (document.getElementById(`doc_pub_${tipo}`)) document.getElementById(`doc_pub_${tipo}`).value = ""; 
 
         previewDiv.innerHTML = `🎉 Terminado. <br>Éxitos: <span style="color:green; font-weight:bold;">${subidos}</span> | Errores: <span style="color:red; font-weight:bold;">${errores}</span>`;
-        if(typeof fetchPublicCounts === 'function') fetchPublicCounts();
+        
+        // Actualizar listas públicas
+        try {
+            if(typeof fetchPublicCounts === 'function') await fetchPublicCounts();
+            if (tipo === 'miss' && typeof window.loadPubMiss === 'function') await window.loadPubMiss(true);
+            if (tipo === 'fnd') {
+                if (typeof window.loadPubRefugio === 'function') await window.loadPubRefugio(true);
+                if (typeof window.loadPubFnd === 'function') await window.loadPubFnd(true);
+            }
+            if (document.getElementById('admin-dashboard') && document.getElementById('admin-dashboard').style.display === 'block') {
+                if (typeof window.loadAdminData === 'function') await window.loadAdminData(true);
+            }
+        } catch (updateErr) {
+            console.error("Error recargando:", updateErr);
+        }
     };
 // ============================================================================
     // MOTOR DE LOGÍSTICA (HOSPITALES, ACOPIOS, REFUGIOS E INSUMOS)

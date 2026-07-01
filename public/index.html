@@ -595,22 +595,31 @@ window.onload = async () => {
         }
     };
    // Funciones para cargar fichas en la vista principal
-    window.loadPubMiss = async (isReset = false) => {
+ window.loadPubMiss = async (isReset = false) => {
+        const btn = document.getElementById('btn-more-miss');
         if (isReset) {
             document.getElementById('pub-list-miss').innerHTML = '';
             pubLastMiss = null;
+            if (btn) btn.style.display = 'block';
         }
+        
+        // Ajustado a límite de 5 para coincidir con el botón "Ver Siguientes 5"
         let q = pubLastMiss 
-            ? query(collection(db, "desaparecidos"), orderBy("fecha_timestamp", "desc"), startAfter(pubLastMiss), limit(10))
-            : query(collection(db, "desaparecidos"), orderBy("fecha_timestamp", "desc"), limit(10));
+            ? query(collection(db, "desaparecidos"), orderBy("fecha_timestamp", "desc"), startAfter(pubLastMiss), limit(5))
+            : query(collection(db, "desaparecidos"), orderBy("fecha_timestamp", "desc"), limit(5));
         
         const snap = await getDocs(q);
-        if(snap.empty) return;
+        if(snap.empty) {
+            if (btn) btn.style.display = 'none';
+            return;
+        }
         pubLastMiss = snap.docs[snap.docs.length - 1];
-snap.forEach(d => {
+
+        let html = ""; // 🛠️ PAQUETE VACÍO (Aquí se guardan antes de mostrarse)
+        snap.forEach(d => {
             const f = d.data();
             const img = f.fotoP ? `<img src="${f.fotoP}" class="ficha-img">` : '';
-            document.getElementById('pub-list-miss').innerHTML += `
+            html += `
                 <div class="public-ficha" style="background-color: rgba(211, 47, 47, 0.15); border: 1px solid var(--red-main);">
                     ${img}
                     <strong>${f.nombre} ${f.apellido}</strong>
@@ -618,6 +627,11 @@ snap.forEach(d => {
                     <span>Vestimenta: ${f.vestimenta || 'No detallada'}</span>
                 </div>`;
         });
+        
+        // 🛠️ REEMPLAZO EXACTO: Usa "=" en lugar de "+=" para borrar los anteriores
+        document.getElementById('pub-list-miss').innerHTML = html; 
+        
+        if (snap.docs.length < 5 && btn) btn.style.display = 'none';
     };
 
   window.loadPubFnd = async (isReset = false) => {
@@ -627,7 +641,7 @@ snap.forEach(d => {
             pubLastFnd = null;
             if (btn) btn.style.display = 'block';
         }
-        // Cambio a 5 registros por página
+        
         let q = pubLastFnd 
             ? query(collection(db, "encontrados"), orderBy("fecha_timestamp", "desc"), startAfter(pubLastFnd), limit(5))
             : query(collection(db, "encontrados"), orderBy("fecha_timestamp", "desc"), limit(5));
@@ -640,13 +654,14 @@ snap.forEach(d => {
         pubLastFnd = snap.docs[snap.docs.length - 1];
 
         let count = 0;
+        let html = ""; // 🛠️ PAQUETE VACÍO
         snap.forEach(d => {
             const f = d.data();
             if (f.publicado) return; // Oculta a los que ya el administrador publicó
             
             count++;
             const img = f.fotoP ? `<img src="${f.fotoP}" class="ficha-img">` : '';
-           document.getElementById('pub-list-fnd').innerHTML += `
+            html += `
                 <div class="public-ficha" style="background-color: rgba(25, 118, 210, 0.15); border: 1px solid var(--blue-main);">
                     ${img}
                     <strong>${f.nombre} ${f.apellido}</strong>
@@ -655,6 +670,9 @@ snap.forEach(d => {
                     <strong style="color: ${f.condicion.includes('Crítico') ? 'red' : 'green'};">⚕️ ${f.condicion}</strong>
                 </div>`;
         });
+        
+        // Solo reemplazamos si hay contenido real para no dejar la pantalla en blanco
+        if (html !== "") document.getElementById('pub-list-fnd').innerHTML = html;
         
         if (snap.docs.length < 5 && btn) btn.style.display = 'none';
         if (count === 0 && snap.docs.length === 5) loadPubFnd(); // Auto-busca si todos estaban publicados
@@ -667,7 +685,7 @@ snap.forEach(d => {
             pubLastFam = null;
             if (btn) btn.style.display = 'block';
         }
-        // Cambio a 5 registros por página
+        
         let q = pubLastFam 
             ? query(collection(db, "encontrados"), orderBy("fecha_timestamp", "desc"), startAfter(pubLastFam), limit(5))
             : query(collection(db, "encontrados"), orderBy("fecha_timestamp", "desc"), limit(5));
@@ -680,6 +698,7 @@ snap.forEach(d => {
         pubLastFam = snap.docs[snap.docs.length - 1];
 
         let count = 0;
+        let html = ""; // 🛠️ PAQUETE VACÍO
         snap.forEach(d => {
             const f = d.data();
             if (!f.publicado) return; 
@@ -689,7 +708,7 @@ snap.forEach(d => {
             const likes = f.likes || 0;
             const loves = f.loves || 0;
             const img = f.fotoP ? `<img src="${f.fotoP}" class="ficha-img">` : '';
-            document.getElementById('pub-list-fam').innerHTML += `
+            html += `
                 <div class="public-ficha" style="background-color: rgba(46, 125, 50, 0.15); border: 1px solid var(--green-main);">
                     ${img}
                     <strong style="font-size: 16px;">${f.nombre} ${f.apellido}</strong>
@@ -704,25 +723,10 @@ snap.forEach(d => {
                 </div>`;
         });
         
+        if (html !== "") document.getElementById('pub-list-fam').innerHTML = html;
+        
         if (snap.docs.length < 5 && btn) btn.style.display = 'none';
         if (count === 0 && snap.docs.length === 5) loadPubFam();
-    };
-window.showSection = (id) => {
-        document.querySelectorAll('.section-card').forEach(s => s.classList.remove('active'));
-        
-        if (id && id !== '') {
-            const section = document.getElementById(id);
-            if (section) {
-                // TRUCO: En lugar de bajar la pantalla, "teletransportamos" el formulario
-                // para que aparezca inyectado visualmente justo debajo de los botones
-                const navButtons = document.querySelector('.nav-buttons');
-                navButtons.parentNode.insertBefore(section, navButtons.nextSibling);
-                
-                section.classList.add('active');
-            }
-        } else {
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-        }
     };
 
 // LÓGICA DE ALTA PRIVACIDAD: Comprimimos y subimos a la bóveda de Cloudinary
