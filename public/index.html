@@ -1575,67 +1575,92 @@ listaEscaneadaPendiente.forEach((p, index) => {
         } catch (err) { previewDiv.innerHTML = `❌ Error procesando el documento.`; }
     };
 
-  // --- 6. GUARDAR TODO ---
+ // --- 6. GUARDAR TODO ---
     window.registrarListaFoto = async (tipo) => {
         if (listaEscaneadaPendiente.length === 0) return;
         if (!confirm(`¿Estás seguro de registrar estas ${listaEscaneadaPendiente.length} fichas?`)) return;
         
+        // 🛠️ PASO 1: LEER TODOS LOS DATOS PRIMERO (Antes de borrar las casillas de la pantalla)
+        for (let i = 0; i < listaEscaneadaPendiente.length; i++) {
+            let p = listaEscaneadaPendiente[i];
+            
+            const inputNom = document.getElementById(`scan_nom_${i}`);
+            const inputApe = document.getElementById(`scan_ape_${i}`);
+            const inputCed = document.getElementById(`scan_ced_${i}`);
+            const inputEda = document.getElementById(`scan_eda_${i}`);
+
+            if (inputNom) p.nombre = inputNom.value.toUpperCase().trim() || "NO ESPECIFICADO";
+            if (inputApe) p.apellido = inputApe.value.toUpperCase().trim() || "NO ESPECIFICADO";
+            if (inputCed) p.cedula = inputCed.value.replace(/\D/g, '') || "0";
+            if (inputEda) p.edad = inputEda.value.trim() || "No esp.";
+            
+            p.sexo = p.sexo || "Masculino";
+            p.fecha_timestamp = Date.now() + i;
+
+            if (tipo === 'miss') {
+                const inputFamNom = document.getElementById(`scan_fam_nom_${i}`);
+                const inputFamTel = document.getElementById(`scan_fam_tel_${i}`);
+                
+                if (inputFamNom) p.fam_nombre = inputFamNom.value.trim() || "NO ESPECIFICADO";
+                if (inputFamTel) p.fam_tel = inputFamTel.value.trim() || "NO ESPECIFICADO";
+            } else {
+                const inputEst = document.getElementById(`scan_est_${i}`);
+                const inputMun = document.getElementById(`scan_mun_${i}`);
+                const inputDir = document.getElementById(`scan_dir_${i}`);
+                const inputTel = document.getElementById(`scan_tel_${i}`);
+
+                if (inputEst) p.estado = inputEst.value.toUpperCase().trim() || "NO ESPECIFICADO";
+                if (inputMun) p.municipio = inputMun.value.toUpperCase().trim() || "NO ESPECIFICADO";
+                if (inputDir) p.direccion_exacta = inputDir.value.trim() || "NO ESPECIFICADO";
+                if (inputTel) p.tel_reporta = inputTel.value.trim() || "NO ESPECIFICADO";
+                
+                p.condicion = p.condicion || "Ileso/Estable";
+                p.publicado = false; // Publicación directa
+                p.reunificado = false;
+            }
+        }
+
+        // 🛠️ PASO 2: AHORA SÍ MOSTRAMOS EL MENSAJE DE CARGA (Ya los datos están a salvo en la memoria)
         const previewDiv = document.getElementById(`preview_pub_${tipo}`);
         previewDiv.innerHTML = `⏳ Registrando en la nube... Por favor, no cierres esta ventana.`;
         
         const coleccionNombre = tipo === 'miss' ? "desaparecidos" : "encontrados";
         let subidos = 0; let errores = 0;
 
+        // 🛠️ PASO 3: ENVIAR A FIREBASE
         for (let i = 0; i < listaEscaneadaPendiente.length; i++) {
-            // 🛠️ SEGUNDO CAMBIO: Envolvemos todo el proceso interno dentro del try-catch para evitar congelamientos si falta una casilla
             try {
-                let p = listaEscaneadaPendiente[i];
-                
-                // Rescatar campos base de los inputs
-                const inputNom = document.getElementById(`scan_nom_${i}`);
-                const inputApe = document.getElementById(`scan_ape_${i}`);
-                const inputCed = document.getElementById(`scan_ced_${i}`);
-                const inputEda = document.getElementById(`scan_eda_${i}`);
-
-                p.nombre = inputNom ? inputNom.value.toUpperCase().trim() : (p.nombre || "NO ESPECIFICADO");
-                p.apellido = inputApe ? inputApe.value.toUpperCase().trim() : (p.apellido || "NO ESPECIFICADO");
-                p.cedula = inputCed ? inputCed.value.replace(/\D/g, '') : (p.cedula || "0");
-                p.edad = inputEda ? inputEda.value.trim() : (p.edad || "No esp.");
-                p.sexo = p.sexo || "Masculino";
-                p.fecha_timestamp = Date.now() + i; // Marca de tiempo única por ficha
-
-                if (tipo === 'miss') {
-                    const inputFamNom = document.getElementById(`scan_fam_nom_${i}`);
-                    const inputFamTel = document.getElementById(`scan_fam_tel_${i}`);
-                    
-                    p.fam_nombre = inputFamNom ? inputFamNom.value.trim() : "NO ESPECIFICADO";
-                    p.fam_tel = inputFamTel ? inputFamTel.value.trim() : "NO ESPECIFICADO";
-                } else {
-                    const inputEst = document.getElementById(`scan_est_${i}`);
-                    const inputMun = document.getElementById(`scan_mun_${i}`);
-                    const inputDir = document.getElementById(`scan_dir_${i}`);
-                    const inputTel = document.getElementById(`scan_tel_${i}`);
-
-                    p.estado = inputEst ? inputEst.value.toUpperCase().trim() : "NO ESPECIFICADO";
-                    p.municipio = inputMun ? inputMun.value.toUpperCase().trim() : "NO ESPECIFICADO";
-                    p.direccion_exacta = inputDir ? inputDir.value.trim() : "NO ESPECIFICADO";
-                    p.tel_reporta = inputTel ? inputTel.value.trim() : "NO ESPECIFICADO";
-                    p.condicion = p.condicion || "Ileso/Estable";
-
-                    // 🛠️ REGLA DE ORO: publicado en false hace que aparezca de inmediato en la lista azul sin aprobación del admin
-                    p.publicado = false; 
-                    p.reunificado = false;
-                }
-
-                // Guardar directo en la base de datos correspondiente
-                await addDoc(collection(db, coleccionNombre), p); 
+                await addDoc(collection(db, coleccionNombre), listaEscaneadaPendiente[i]); 
                 subidos++; 
             } 
             catch (err) { 
-                console.error("Error procesando ficha individual:", err);
+                console.error("Error subiendo ficha:", err);
                 errores++; 
             }
         }
+
+        // Limpiar pantalla al terminar
+        listaEscaneadaPendiente = []; 
+        if (document.getElementById(`img_pub_${tipo}`)) document.getElementById(`img_pub_${tipo}`).value = ""; 
+        if (document.getElementById(`doc_pub_${tipo}`)) document.getElementById(`doc_pub_${tipo}`).value = ""; 
+
+        previewDiv.innerHTML = `🎉 Terminado. <br>Éxitos: <span style="color:green; font-weight:bold;">${subidos}</span> | Errores: <span style="color:red; font-weight:bold;">${errores}</span>`;
+        
+        // Actualizar listas públicas
+        try {
+            if(typeof fetchPublicCounts === 'function') await fetchPublicCounts();
+            if (tipo === 'miss' && typeof window.loadPubMiss === 'function') await window.loadPubMiss(true);
+            if (tipo === 'fnd') {
+                if (typeof window.loadPubRefugio === 'function') await window.loadPubRefugio(true);
+                if (typeof window.loadPubFnd === 'function') await window.loadPubFnd(true);
+            }
+            if (document.getElementById('admin-dashboard') && document.getElementById('admin-dashboard').style.display === 'block') {
+                if (typeof window.loadAdminData === 'function') await window.loadAdminData(true);
+            }
+        } catch (updateErr) {
+            console.error("Error recargando:", updateErr);
+        }
+    };
 
         // Limpiar los selectores de archivos e interfaz pendiente
         listaEscaneadaPendiente = []; 
