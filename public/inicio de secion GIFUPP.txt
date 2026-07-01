@@ -8,3 +8,24 @@ git add .
 git commit -m "Agregando verificacion de Google"
 
 git push
+
+
+
+Opción 1: El método rápido (Desde cualquier teléfono o PC prestada)
+Si estás en la calle y necesitas arreglar un texto rápido o cambiar un color, no necesitas instalar nada.
+
+Abre el navegador web (Chrome, Safari, etc.) y entra a tu repositorio: https://github.com/lucenawilmer325-png/Web_SOS
+
+Inicia sesión con tu cuenta de GitHub.
+
+Haz clic en el archivo que quieres editar (por ejemplo, index.html).
+
+Arriba a la derecha del código, verás un ícono de un Lápiz ✏️. Haz clic ahí.
+
+El código se volverá editable. Haz los cambios que necesites directamente en la pantalla.
+
+Cuando termines, dale al botón verde arriba a la derecha que dice "Commit changes..." (Guardar cambios).
+
+Te pedirá un mensaje (como cuando hacías el commit -m). Escribes qué cambiaste y le das a guardar.
+
+¡La magia! Al hacer esto, el robot de GitHub detectará el cambio y actualizará tu página de Firebase automáticamente en 1 minuto, ¡sin que toques la consola negra!

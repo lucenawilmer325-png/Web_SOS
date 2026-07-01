@@ -1344,7 +1344,7 @@ window.handleFoundSubmit = async (e) => {
 
         for(let linea of lineas) {
             if(linea.trim().length < 8) continue;
-            let lineaUpper = linea.toUpperCase();
+            let lineaUpper = linea.toUpperCase().replace(/[,;\t\-_|.]/g, ' ').replace(/\s+/g, ' ');
             
             // 1. Extraer Cédula (Entre 6 y 8 dígitos, evitamos que confunda con teléfonos)
             let cedulaMatch = lineaUpper.match(/\b([1-9]\d{5,7})\b/);
