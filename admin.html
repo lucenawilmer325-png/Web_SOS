@@ -480,10 +480,14 @@
         lastMissDoc = snap.docs[snap.docs.length - 1];
 
         let html = "";
-        snap.forEach(docSnap => {
+       snap.forEach(docSnap => {
             const d = docSnap.data();
+            // 📸 LÓGICA DE FOTO PARA DESAPARECIDOS
+            let imgHtml = d.fotoP ? `<img src="${d.fotoP}" style="width:100%; height:180px; object-fit:cover; border-radius:6px; margin-top:10px; margin-bottom:10px; border: 1px solid #ccc;">` : '';
+
             html += `<div class="data-card search-item" data-text="${d.nombre} ${d.apellido} ${d.cedula}" data-sex="${d.sexo}">
                 <div class="tag" style="background:var(--red-main);">BUSCADO</div>
+                ${imgHtml}
                 <h4>${d.nombre} ${d.apellido}</h4>
                 <p><strong>C.I:</strong> ${d.cedula} | <strong>Edad:</strong> ${d.edad}</p>
                 <div style="margin-top:10px; background:#f0f0f0; padding:8px; border-radius:4px;">
@@ -515,12 +519,16 @@
             const id = docSnap.id;
             let isCrit = f.condicion.includes('Herido') || f.condicion.includes('Crítico');
             if(isCrit) cCrit++; else cIleso++;
-            let btnPub = f.publicado 
+           let btnPub = f.publicado 
                 ? `<button class="btn-sm btn-dark" disabled>✅ Ya Publicado</button>` 
                 : `<button class="btn-sm btn-green" style="border:none; cursor:pointer;" onclick="publicarFnd('${id}', '${f.cedula}', this)">📢 Publicar en Web</button>`;
             
+            // 📸 LÓGICA DE FOTO PARA ENCONTRADOS
+            let imgHtml = f.fotoP ? `<img src="${f.fotoP}" style="width:100%; height:180px; object-fit:cover; border-radius:6px; margin-top:10px; margin-bottom:10px; border: 1px solid #ccc;">` : '';
+
             html += `<div class="data-card search-item ${isCrit ? 'card-critico' : ''}" data-text="${f.nombre} ${f.apellido} ${f.cedula}" data-sex="${f.sexo}">
                 <div class="tag" style="background:var(--blue-main);">ENCONTRADO</div>
+                ${imgHtml}
                 <h4>${f.nombre} ${f.apellido}</h4>
                 <p><strong>C.I:</strong> ${f.cedula} | <strong>Ubicación:</strong> ${f.estado}, ${f.municipio}</p>
                 <p><strong>Dirección:</strong> ${f.direccion_exacta || 'No especificada'}</p>
@@ -550,11 +558,13 @@
         snap.forEach(docSnap => {
             const f = docSnap.data();
             if (!f.publicado) return; 
-
-            let isCrit = f.condicion.includes('Herido') || f.condicion.includes('Crítico');
+let isCrit = f.condicion.includes('Herido') || f.condicion.includes('Crítico');
+            // 📸 LÓGICA DE FOTO PARA PUBLICADOS
+            let imgHtml = f.fotoP ? `<img src="${f.fotoP}" style="width:100%; height:180px; object-fit:cover; border-radius:6px; margin-top:10px; margin-bottom:10px; border: 1px solid #ccc;">` : '';
             
             html += `<div class="data-card search-item" style="border-color:#8e24aa; background:#f3e5f5;">
                 <div class="tag" style="background:#8e24aa;">PUBLICADO / FAMILIAR</div>
+                ${imgHtml}
                 <h4>${f.nombre} ${f.apellido}</h4>
                 <p><strong>C.I:</strong> ${f.cedula} | <strong>Ubicación:</strong> ${f.estado}, ${f.municipio}</p>
                 <p><strong>Dirección Exacta:</strong> ${f.direccion_exacta || 'No especificada'}</p>
@@ -967,18 +977,21 @@
             // 📸 LÓGICA DE FOTO PARA EL ADMINISTRADOR
             let imgHtml = d.fotoP ? `<img src="${d.fotoP}" style="width:100%; height:180px; object-fit:cover; border-radius:6px; margin-top:10px; margin-bottom:10px; border: 1px solid #ccc;">` : '';
             
-            // 📢 BOTÓN DE PUBLICAR
+        // 📢 BOTÓN DE PUBLICAR Y ELIMINAR
             let btnPub = d.publicado 
-                ? `<button class="btn-sm btn-dark" disabled style="width:100%; padding:10px; border-radius:6px;">✅ Publicado en Web</button>` 
-                : `<button class="btn-sm btn-green" style="border:none; cursor:pointer; width:100%; padding:10px; border-radius:6px; font-weight:bold; font-size:14px;" onclick="publicarLogistica('${id}', 'centros_medicos', this)">📢 Publicar en Web</button>`;
+                ? `<button class="btn-sm btn-dark" disabled style="flex:1; padding:10px; border-radius:6px;">✅ Publicado</button>` 
+                : `<button class="btn-sm btn-green" style="border:none; cursor:pointer; flex:1; padding:10px; border-radius:6px; font-weight:bold; font-size:14px;" onclick="publicarLogistica('${id}', 'centros_medicos', this)">📢 Publicar</button>`;
+
+            let btnDel = `<button class="btn-sm btn-red" style="border:none; cursor:pointer; flex:1; padding:10px; border-radius:6px; font-weight:bold; font-size:14px;" onclick="eliminarLogistica('${id}', 'centros_medicos', this)">🗑️ Eliminar</button>`;
 
             html += `<div class="data-card" style="border-top: 4px solid #e91e63;">
                 <div class="tag" style="background:#e91e63;">CENTRO MÉDICO</div>
                 ${imgHtml}
                 <h4 style="font-size:16px; margin-bottom:5px;">${d.nombre}</h4>
-                <p><strong>Ubicación:</strong> Edo. ${d.estado}, ${d.municipio}</p>
-                <p><strong>Dirección:</strong> ${d.direccion}</p>
-                <p style="color:#c2185b; font-weight:bold;">${d.clasificacion_capacidad || 'N/A'}</p>
+                <p style="margin:3px 0;"><strong>📍 Ubicación:</strong> Edo. ${d.estado}, ${d.municipio}</p>
+                <p style="margin:3px 0;"><strong>🏠 Dirección:</strong> ${d.direccion}</p>
+                <p style="margin:3px 0;"><strong>🗺️ Coordenadas:</strong> Lat: ${d.lat || 'Falta'}, Lng: ${d.lng || 'Falta'}</p>
+                <p style="color:#c2185b; font-weight:bold; margin:3px 0;">🏥 Capacidad: ${d.clasificacion_capacidad || 'N/A'}</p>
                 
                 <div style="background:#fce4ec; padding:10px; border-radius:6px; margin-top:10px;">
                     <p style="margin:0 0 8px 0; font-size:13px; color:#c2185b;"><strong>💊 INSUMOS REQUERIDOS:</strong></p>
@@ -990,7 +1003,7 @@
                     ${d.telefono ? `<button class="btn-sm btn-dark" style="margin-top:5px; border:none; cursor:pointer; width:100%;" onclick="copyPhone('${d.telefono}')">📋 Copiar Tlf: ${d.telefono}</button>` : ''}
                 </div>
                 
-                <div style="margin-top:15px;">${btnPub}</div>
+                <div style="margin-top:15px; display:flex; gap:10px;">${btnPub}${btnDel}</div>
             </div>`;
         });
         const grid = document.getElementById('med-grid');
@@ -1019,17 +1032,20 @@
             // 📸 LÓGICA DE FOTO
             let imgHtml = d.fotoP ? `<img src="${d.fotoP}" style="width:100%; height:180px; object-fit:cover; border-radius:6px; margin-top:10px; margin-bottom:10px; border: 1px solid #ccc;">` : '';
 
-            // 📢 BOTÓN DE PUBLICAR
+          // 📢 BOTÓN DE PUBLICAR Y ELIMINAR
             let btnPub = d.publicado 
-                ? `<button class="btn-sm btn-dark" disabled style="width:100%; padding:10px; border-radius:6px;">✅ Publicado en Web</button>` 
-                : `<button class="btn-sm btn-green" style="border:none; cursor:pointer; width:100%; padding:10px; border-radius:6px; font-weight:bold; font-size:14px;" onclick="publicarLogistica('${id}', 'centros_acopio', this)">📢 Publicar en Web</button>`;
+                ? `<button class="btn-sm btn-dark" disabled style="flex:1; padding:10px; border-radius:6px;">✅ Publicado</button>` 
+                : `<button class="btn-sm btn-green" style="border:none; cursor:pointer; flex:1; padding:10px; border-radius:6px; font-weight:bold; font-size:14px;" onclick="publicarLogistica('${id}', 'centros_acopio', this)">📢 Publicar</button>`;
+
+            let btnDel = `<button class="btn-sm btn-red" style="border:none; cursor:pointer; flex:1; padding:10px; border-radius:6px; font-weight:bold; font-size:14px;" onclick="eliminarLogistica('${id}', 'centros_acopio', this)">🗑️ Eliminar</button>`;
 
             html += `<div class="data-card" style="border-top: 4px solid #00bcd4;">
                 <div class="tag" style="background:#00bcd4;">CENTRO DE ACOPIO</div>
                 ${imgHtml}
                 <h4 style="font-size:16px; margin-bottom:5px;">${d.nombre}</h4>
-                <p><strong>Ubicación:</strong> Edo. ${d.estado}, ${d.municipio}</p>
-                <p><strong>Dirección:</strong> ${d.direccion}</p>
+                <p style="margin:3px 0;"><strong>📍 Ubicación:</strong> Edo. ${d.estado}, ${d.municipio}</p>
+                <p style="margin:3px 0;"><strong>🏠 Dirección:</strong> ${d.direccion}</p>
+                <p style="margin:3px 0;"><strong>🗺️ Coordenadas:</strong> Lat: ${d.lat || 'Falta'}, Lng: ${d.lng || 'Falta'}</p>
                 
                 <div style="background:#e0f7fa; padding:10px; border-radius:6px; margin-top:10px;">
                     <p style="margin:0 0 8px 0; font-size:13px; color:#00838f;"><strong>🥫 DONACIONES SOLICITADAS:</strong></p>
@@ -1041,7 +1057,7 @@
                     ${d.telefono ? `<button class="btn-sm btn-dark" style="margin-top:5px; border:none; cursor:pointer; width:100%;" onclick="copyPhone('${d.telefono}')">📋 Copiar Tlf: ${d.telefono}</button>` : ''}
                 </div>
                 
-                <div style="margin-top:15px;">${btnPub}</div>
+                <div style="margin-top:15px; display:flex; gap:10px;">${btnPub}${btnDel}</div>
             </div>`;
         });
         const grid = document.getElementById('acopio-grid');
@@ -1070,18 +1086,21 @@
             // 📸 LÓGICA DE FOTO
             let imgHtml = d.fotoP ? `<img src="${d.fotoP}" style="width:100%; height:180px; object-fit:cover; border-radius:6px; margin-top:10px; margin-bottom:10px; border: 1px solid #ccc;">` : '';
 
-            // 📢 BOTÓN DE PUBLICAR
+        // 📢 BOTÓN DE PUBLICAR Y ELIMINAR
             let btnPub = d.publicado 
-                ? `<button class="btn-sm btn-dark" disabled style="width:100%; padding:10px; border-radius:6px;">✅ Publicado en Web</button>` 
-                : `<button class="btn-sm btn-green" style="border:none; cursor:pointer; width:100%; padding:10px; border-radius:6px; font-weight:bold; font-size:14px;" onclick="publicarLogistica('${id}', 'refugios', this)">📢 Publicar en Web</button>`;
+                ? `<button class="btn-sm btn-dark" disabled style="flex:1; padding:10px; border-radius:6px;">✅ Publicado</button>` 
+                : `<button class="btn-sm btn-green" style="border:none; cursor:pointer; flex:1; padding:10px; border-radius:6px; font-weight:bold; font-size:14px;" onclick="publicarLogistica('${id}', 'refugios', this)">📢 Publicar</button>`;
+
+            let btnDel = `<button class="btn-sm btn-red" style="border:none; cursor:pointer; flex:1; padding:10px; border-radius:6px; font-weight:bold; font-size:14px;" onclick="eliminarLogistica('${id}', 'refugios', this)">🗑️ Eliminar</button>`;
 
             html += `<div class="data-card" style="border-top: 4px solid #795548;">
                 <div class="tag" style="background:#795548;">REFUGIO</div>
                 ${imgHtml}
                 <h4 style="font-size:16px; margin-bottom:5px;">${d.nombre}</h4>
-                <p><strong>Ubicación:</strong> Edo. ${d.estado}, ${d.municipio}</p>
-                <p><strong>Dirección:</strong> ${d.direccion}</p>
-                <p style="color:#5d4037; font-weight:bold;">Capacidad: ${d.clasificacion_capacidad || 'N/A'} personas</p>
+                <p style="margin:3px 0;"><strong>📍 Ubicación:</strong> Edo. ${d.estado}, ${d.municipio}</p>
+                <p style="margin:3px 0;"><strong>🏠 Dirección:</strong> ${d.direccion}</p>
+                <p style="margin:3px 0;"><strong>🗺️ Coordenadas:</strong> Lat: ${d.lat || 'Falta'}, Lng: ${d.lng || 'Falta'}</p>
+                <p style="color:#5d4037; font-weight:bold; margin:3px 0;">Capacidad: ${d.clasificacion_capacidad || 'N/A'} personas</p>
                 
                 <div style="background:#efebe9; padding:10px; border-radius:6px; margin-top:10px;">
                     <p style="margin:0 0 8px 0; font-size:13px; color:#4e342e;"><strong>🛏️ NECESIDADES:</strong></p>
@@ -1093,7 +1112,7 @@
                     ${d.telefono ? `<button class="btn-sm btn-dark" style="margin-top:5px; border:none; cursor:pointer; width:100%;" onclick="copyPhone('${d.telefono}')">📋 Copiar Tlf: ${d.telefono}</button>` : ''}
                 </div>
                 
-                <div style="margin-top:15px;">${btnPub}</div>
+                <div style="margin-top:15px; display:flex; gap:10px;">${btnPub}${btnDel}</div>
            </div>`;
         });
         const grid = document.getElementById('refugio-grid');
@@ -1271,6 +1290,31 @@
         } catch(e) { 
             console.error(e);
             alert("Error publicando en la base de datos."); 
+        }
+    };
+
+    window.eliminarLogistica = async (docId, coleccion, btn) => {
+        if(!confirm("⚠️ ¿Estás totalmente seguro de eliminar este registro permanentemente? Desaparecerá de todas las vistas, incluyendo el mapa nacional.")) return;
+        try {
+            btn.innerText = "Borrando...";
+            btn.disabled = true;
+            
+            await deleteDoc(doc(db, coleccion, docId));
+            
+            // Eliminar visualmente la tarjeta del administrador de inmediato
+            btn.closest('.data-card').remove();
+            
+            // Actualización en tiempo real para las vistas públicas (si ya estaba publicado)
+            if (coleccion === 'centros_medicos' && typeof window.loadPubMed === 'function') window.loadPubMed(true);
+            if (coleccion === 'centros_acopio' && typeof window.loadPubAcopio === 'function') window.loadPubAcopio(true);
+            if (coleccion === 'refugios' && typeof window.loadPubRefugio === 'function') window.loadPubRefugio(true);
+
+            alert("🗑️ Registro eliminado exitosamente de la base de datos.");
+        } catch(e) { 
+            console.error(e);
+            alert("Error al eliminar en la base de datos."); 
+            btn.innerText = "🗑️ Eliminar";
+            btn.disabled = false;
         }
     };
 </script>

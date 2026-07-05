@@ -432,6 +432,36 @@
         <img id="news-image" style="display:none; width: 100%; max-height: 500px; object-fit: contain; border-radius: 8px; margin-top: 10px; background: rgba(255,255,255,0.5); padding: 10px;">
     </div>
 
+<!-- MOTOR DE NAVEGACIÓN INDEPENDIENTE (Carga Inmediata y Reubicación Dinámica) -->
+<script>
+    window.showSection = (sectionId) => {
+        // 1. Ocultar todas las tarjetas (paneles) primero
+        document.querySelectorAll('.section-card').forEach(card => {
+            card.classList.remove('active');
+        });
+        
+        // 2. Mostrar únicamente el panel solicitado y reubicarlo
+        if (sectionId && sectionId !== '') {
+            let section = document.getElementById(sectionId);
+            let navButtons = document.querySelector('.nav-buttons');
+            
+            if (section) {
+                // MAGIA: Mueve el formulario en tiempo real para que aparezca justo debajo de los botones
+                if (navButtons) {
+                    navButtons.parentNode.insertBefore(section, navButtons.nextSibling);
+                }
+                
+                section.classList.add('active');
+                
+                // Desplazamiento suave para centrar la vista
+                setTimeout(() => {
+                    section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }, 50);
+            }
+        }
+    };
+</script>
+
 <!-- SCRIPT DE FIREBASE Y LÓGICA -->
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";

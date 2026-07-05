@@ -11,12 +11,42 @@
     <meta name="keywords" content="SOS Venezuela, desaparecidos, encontrados, hospitales, refugios, emergencia, rescate">
     <meta name="author" content="SOS Venezuela">
    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-   <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/browser-image-compression@2.0.1/dist/browser-image-compression.js"></script>
+  <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/browser-image-compression@2.0.1/dist/browser-image-compression.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    
+    <!-- LIBRERÍAS DE MAPA (LEAFLET) -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
     <style>
+        /* ANIMACIONES TIPO RADAR (TIEMPO REAL) */
+        .radar-marker { border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 0 0 rgba(0,0,0,0.5); animation-duration: 2s; animation-iteration-count: infinite; animation-timing-function: cubic-bezier(0.1, 0.8, 0.3, 1); }
+        .radar-pink { background: #e91e63; animation-name: pulse-pink; }
+        .radar-blue { background: #00bcd4; animation-name: pulse-blue; }
+        .radar-brown { background: #795548; animation-name: pulse-brown; }
+        
+        /* ONDAS MÚLTIPLES EXPANSIVAS */
+        @keyframes pulse-pink { 
+            0% { box-shadow: 0 0 0 0 rgba(233, 30, 99, 0.9), 0 0 0 0 rgba(233, 30, 99, 0.7); } 
+            50% { box-shadow: 0 0 0 15px rgba(233, 30, 99, 0.4), 0 0 0 0 rgba(233, 30, 99, 0.6); } 
+            100% { box-shadow: 0 0 0 35px rgba(233, 30, 99, 0), 0 0 0 20px rgba(233, 30, 99, 0); } 
+        }
+        @keyframes pulse-blue { 
+            0% { box-shadow: 0 0 0 0 rgba(0, 188, 212, 0.9), 0 0 0 0 rgba(0, 188, 212, 0.7); } 
+            50% { box-shadow: 0 0 0 15px rgba(0, 188, 212, 0.4), 0 0 0 0 rgba(0, 188, 212, 0.6); } 
+            100% { box-shadow: 0 0 0 35px rgba(0, 188, 212, 0), 0 0 0 20px rgba(0, 188, 212, 0); } 
+        }
+        @keyframes pulse-brown { 
+            0% { box-shadow: 0 0 0 0 rgba(121, 85, 72, 0.9), 0 0 0 0 rgba(121, 85, 72, 0.7); } 
+            50% { box-shadow: 0 0 0 15px rgba(121, 85, 72, 0.4), 0 0 0 0 rgba(121, 85, 72, 0.6); } 
+            100% { box-shadow: 0 0 0 35px rgba(121, 85, 72, 0), 0 0 0 20px rgba(121, 85, 72, 0); } 
+        }
+        .mini-map { height: 250px; width: 100%; border-radius: 8px; margin-top: 10px; margin-bottom: 5px; border: 2px solid #ccc; z-index: 1;}
+        #main-map { height: 500px; width: 100%; border-radius: 12px; z-index: 1; border: 3px solid #ddd;}
+
         :root {
             --red-main: #d32f2f;
             --blue-main: #1976d2;
@@ -205,7 +235,7 @@
                 <button id="btn-more-fnd" class="load-more-btn" onclick="loadPubFnd()">⬇️ Ver Siguientes 5</button>
             </div>
             
-            <div class="stat-window green">
+           <div class="stat-window green">
                 <div class="stat-header">
                     <div><h3 style="color:var(--green-main);">Con Familiares</h3></div>
                     <span id="pub-count-fam">0</span>
@@ -213,6 +243,48 @@
                 <div id="pub-list-fam" class="public-list"></div>
                 <button id="btn-more-fam" class="load-more-btn" onclick="loadPubFam()">⬇️ Ver Siguientes 5</button>
             </div>
+        </div>
+
+        <!-- NUEVAS VENTANAS PÚBLICAS DE LOGÍSTICA (MEDICOS, ACOPIO, REFUGIOS) -->
+        <h3 style="border-top:1px solid #eee; padding-top:25px; color:var(--dark-main); margin-bottom:15px; font-size:16px;">Logística y Ayuda Humanitaria (Aprobados)</h3>
+        <div class="stats-public-grid" style="align-items: start; margin-bottom: 25px;">
+            
+            <!-- CENTROS MEDICOS -->
+            <div class="stat-window" style="border-top: 5px solid #e91e63;">
+                <div class="stat-header">
+                    <div><h3 style="color:#e91e63;">🏥 Centros Médicos</h3></div>
+                </div>
+                <div id="pub-view-med" class="public-list" style="display:block;"></div>
+                <div style="display:flex; gap:10px; margin-top:15px;">
+                    <button id="btn-prev-med" class="btn btn-dark btn-sm" style="flex:1; display:none;" onclick="cargarLogisticaPublica('med', -1)">⬅️ Atrás</button>
+                    <button id="btn-next-med" class="btn btn-dark btn-sm" style="flex:1;" onclick="cargarLogisticaPublica('med', 1)">Siguiente ➡️</button>
+                </div>
+            </div>
+
+            <!-- CENTROS DE ACOPIO -->
+            <div class="stat-window" style="border-top: 5px solid #00bcd4;">
+                <div class="stat-header">
+                    <div><h3 style="color:#00bcd4;">📦 Centros de Acopio</h3></div>
+                </div>
+                <div id="pub-view-acp" class="public-list" style="display:block;"></div>
+                <div style="display:flex; gap:10px; margin-top:15px;">
+                    <button id="btn-prev-acp" class="btn btn-dark btn-sm" style="flex:1; display:none;" onclick="cargarLogisticaPublica('acp', -1)">⬅️ Atrás</button>
+                    <button id="btn-next-acp" class="btn btn-dark btn-sm" style="flex:1;" onclick="cargarLogisticaPublica('acp', 1)">Siguiente ➡️</button>
+                </div>
+            </div>
+
+            <!-- REFUGIOS -->
+            <div class="stat-window" style="border-top: 5px solid #795548;">
+                <div class="stat-header">
+                    <div><h3 style="color:#795548;">⛺ Refugios</h3></div>
+                </div>
+                <div id="pub-view-ref" class="public-list" style="display:block;"></div>
+                <div style="display:flex; gap:10px; margin-top:15px;">
+                    <button id="btn-prev-ref" class="btn btn-dark btn-sm" style="flex:1; display:none;" onclick="cargarLogisticaPublica('ref', -1)">⬅️ Atrás</button>
+                    <button id="btn-next-ref" class="btn btn-dark btn-sm" style="flex:1;" onclick="cargarLogisticaPublica('ref', 1)">Siguiente ➡️</button>
+                </div>
+            </div>
+
         </div>
 
        <div id="qr-container">
@@ -337,11 +409,38 @@
                         <option value="Leves (Ambulatorio)">Leves (Ambulatorio)</option>
                     </select>
                 </div>
-                <div><label>Estado:</label><input type="text" id="as_estado" required></div>
-                <div><label>Municipio:</label><input type="text" id="as_muni" required></div>
-                <div style="grid-column: 1 / -1;"><label>Dirección Exacta:</label><input type="text" id="as_dir" required></div>
+               <div><label>Estado:</label>
+                    <select id="as_estado" onchange="cargarMunicipios('as')" required>
+                        <option value="">Seleccione Estado...</option>
+                    </select>
+                </div>
+                <div><label>Municipio:</label>
+                    <select id="as_muni" required disabled style="background:#f9f9f9;">
+                        <option value="">Seleccione Municipio...</option>
+                    </select>
+                </div>
+                <div style="grid-column: 1 / -1;">
+                    <label>Dirección (Referencia escrita):</label><input type="text" id="as_dir" required>
+                    <label style="display:block; margin-top:10px; color:#e91e63;">📍 REQUISITO: Toca en el mapa para marcar la ubicación exacta</label>
+                    <div id="map_as" class="mini-map"></div>
+                    <input type="hidden" id="as_lat">
+                    <input type="hidden" id="as_lng">
+                    <p id="txt_as_coords" style="display:none; color:green; font-size:12px; margin:0;">✔️ Coordenadas fijadas</p>
+                </div>
                 <div><label>Nombre del Responsable / Enlace:</label><input type="text" id="as_resp" required></div>
-                <div><label>Teléfono de Contacto:</label><input type="tel" id="as_tel" required></div>
+                <div><label>Teléfono de Contacto:</label>
+                    <div style="display:flex; gap:5px; margin:5px 0 15px 0;">
+                        <select id="as_tel_cod" required style="width:35%; margin:0;">
+                            <option value="0412">0412</option><option value="0414">0414</option>
+                            <option value="0424">0424</option><option value="0416">0416</option>
+                            <option value="0426">0426</option><option value="0212">0212</option>
+                            <option value="0241">0241</option><option value="0251">0251</option>
+                            <option value="0261">0261</option><option value="0281">0281</option>
+                            <option value="0276">0276</option><option value="0243">0243</option>
+                        </select>
+                        <input type="tel" id="as_tel_num" required placeholder="1234567" maxlength="7" pattern="[0-9]{7}" style="width:65%; margin:0;">
+                    </div>
+                </div>
                 <div style="grid-column: 1 / -1;"><label>Foto del Centro (Opcional):</label><input type="file" id="as_foto" accept="image/*"></div>
             </div>
             
@@ -372,11 +471,38 @@
         <form onsubmit="guardarInstalacion(event, 'centros_acopio', 'ac')">
             <div class="form-grid">
                 <div><label>Nombre del Centro/Organización:</label><input type="text" id="ac_nombre" required style="text-transform:uppercase;"></div>
-                <div><label>Estado:</label><input type="text" id="ac_estado" required></div>
-                <div><label>Municipio:</label><input type="text" id="ac_muni" required></div>
-                <div style="grid-column: 1 / -1;"><label>Dirección Exacta:</label><input type="text" id="ac_dir" required></div>
+               <div><label>Estado:</label>
+                    <select id="ac_estado" onchange="cargarMunicipios('ac')" required>
+                        <option value="">Seleccione Estado...</option>
+                    </select>
+                </div>
+                <div><label>Municipio:</label>
+                    <select id="ac_muni" required disabled style="background:#f9f9f9;">
+                        <option value="">Seleccione Municipio...</option>
+                    </select>
+                </div>
+                <div style="grid-column: 1 / -1;">
+                    <label>Dirección (Referencia escrita):</label><input type="text" id="ac_dir" required>
+                    <label style="display:block; margin-top:10px; color:#00bcd4;">📍 REQUISITO: Toca en el mapa para marcar la ubicación exacta</label>
+                    <div id="map_ac" class="mini-map"></div>
+                    <input type="hidden" id="ac_lat">
+                    <input type="hidden" id="ac_lng">
+                    <p id="txt_ac_coords" style="display:none; color:green; font-size:12px; margin:0;">✔️ Coordenadas fijadas</p>
+                </div>
                 <div><label>Nombre del Responsable:</label><input type="text" id="ac_resp" required></div>
-                <div><label>Teléfono de Contacto:</label><input type="tel" id="ac_tel" required></div>
+                <div><label>Teléfono de Contacto:</label>
+                    <div style="display:flex; gap:5px; margin:5px 0 15px 0;">
+                        <select id="ac_tel_cod" required style="width:35%; margin:0;">
+                            <option value="0412">0412</option><option value="0414">0414</option>
+                            <option value="0424">0424</option><option value="0416">0416</option>
+                            <option value="0426">0426</option><option value="0212">0212</option>
+                            <option value="0241">0241</option><option value="0251">0251</option>
+                            <option value="0261">0261</option><option value="0281">0281</option>
+                            <option value="0276">0276</option><option value="0243">0243</option>
+                        </select>
+                        <input type="tel" id="ac_tel_num" required placeholder="1234567" maxlength="7" pattern="[0-9]{7}" style="width:65%; margin:0;">
+                    </div>
+                </div>
                 <div style="grid-column: 1 / -1;"><label>Foto del Centro (Opcional):</label><input type="file" id="ac_foto" accept="image/*"></div>
             </div>
             
@@ -407,12 +533,38 @@
         <form onsubmit="guardarInstalacion(event, 'refugios', 're')">
             <div class="form-grid">
                 <div><label>Nombre del Refugio:</label><input type="text" id="re_nombre" required style="text-transform:uppercase;"></div>
-                <div><label>Capacidad Aprox (Personas):</label><input type="number" id="re_clase" required></div>
-                <div><label>Estado:</label><input type="text" id="re_estado" required></div>
-                <div><label>Municipio:</label><input type="text" id="re_muni" required></div>
-                <div style="grid-column: 1 / -1;"><label>Dirección Exacta:</label><input type="text" id="re_dir" required></div>
+                <div><label>Estado:</label>
+                    <select id="re_estado" onchange="cargarMunicipios('re')" required>
+                        <option value="">Seleccione Estado...</option>
+                    </select>
+                </div>
+                <div><label>Municipio:</label>
+                    <select id="re_muni" required disabled style="background:#f9f9f9;">
+                        <option value="">Seleccione Municipio...</option>
+                    </select>
+                </div>
+                <div style="grid-column: 1 / -1;">
+                    <label>Dirección (Referencia escrita):</label><input type="text" id="re_dir" required>
+                    <label style="display:block; margin-top:10px; color:#795548;">📍 REQUISITO: Toca en el mapa para marcar la ubicación exacta</label>
+                    <div id="map_re" class="mini-map"></div>
+                    <input type="hidden" id="re_lat">
+                    <input type="hidden" id="re_lng">
+                    <p id="txt_re_coords" style="display:none; color:green; font-size:12px; margin:0;">✔️ Coordenadas fijadas</p>
+                </div>
                 <div><label>Nombre del Responsable:</label><input type="text" id="re_resp" required></div>
-                <div><label>Teléfono de Contacto:</label><input type="tel" id="re_tel" required></div>
+                <div><label>Teléfono de Contacto:</label>
+                    <div style="display:flex; gap:5px; margin:5px 0 15px 0;">
+                        <select id="re_tel_cod" required style="width:35%; margin:0;">
+                            <option value="0412">0412</option><option value="0414">0414</option>
+                            <option value="0424">0424</option><option value="0416">0416</option>
+                            <option value="0426">0426</option><option value="0212">0212</option>
+                            <option value="0241">0241</option><option value="0251">0251</option>
+                            <option value="0261">0261</option><option value="0281">0281</option>
+                            <option value="0276">0276</option><option value="0243">0243</option>
+                        </select>
+                        <input type="tel" id="re_tel_num" required placeholder="1234567" maxlength="7" pattern="[0-9]{7}" style="width:65%; margin:0;">
+                    </div>
+                </div>
                 <div style="grid-column: 1 / -1;"><label>Foto del Refugio (Opcional):</label><input type="file" id="re_foto" accept="image/*"></div>
             </div>
             
@@ -432,31 +584,38 @@
         <img id="news-image" style="display:none; width: 100%; max-height: 500px; object-fit: contain; border-radius: 8px; margin-top: 10px; background: rgba(255,255,255,0.5); padding: 10px;">
     </div>
 
+    <!-- MAPA RADAR EN TIEMPO REAL -->
+    <div id="radar-container" style="background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); margin-top: 10px; margin-bottom: 30px; position:relative;">
+        <h2 style="color: var(--dark-main); margin-top: 0; text-align: center; font-size: 24px;">🛰️ Radar Nacional en Tiempo Real</h2>
+        <p style="text-align: center; color: #666; font-size: 14px; margin-bottom: 15px;">Las ubicaciones se actualizan automáticamente al registrar.</p>
+        <div style="display: flex; justify-content: center; flex-wrap: wrap; gap: 15px; margin-bottom: 15px; font-size: 13px; font-weight: bold;">
+            <span style="color:#e91e63;">🔴 Centros Médicos</span>
+            <span style="color:#00bcd4;">🔵 Centros de Acopio</span>
+            <span style="color:#795548;">🟤 Refugios</span>
+        </div>
+        <div id="main-map"></div>
+    </div>
+
 <!-- MOTOR DE NAVEGACIÓN INDEPENDIENTE (Carga Inmediata y Reubicación Dinámica) -->
 <script>
     window.showSection = (sectionId) => {
-        // 1. Ocultar todas las tarjetas (paneles) primero
-        document.querySelectorAll('.section-card').forEach(card => {
-            card.classList.remove('active');
-        });
+        document.querySelectorAll('.section-card').forEach(card => card.classList.remove('active'));
         
-        // 2. Mostrar únicamente el panel solicitado y reubicarlo
         if (sectionId && sectionId !== '') {
             let section = document.getElementById(sectionId);
             let navButtons = document.querySelector('.nav-buttons');
             
             if (section) {
-                // MAGIA: Mueve el formulario en tiempo real para que aparezca justo debajo de los botones
-                if (navButtons) {
-                    navButtons.parentNode.insertBefore(section, navButtons.nextSibling);
-                }
-                
+                if (navButtons) navButtons.parentNode.insertBefore(section, navButtons.nextSibling);
                 section.classList.add('active');
                 
-                // Desplazamiento suave para centrar la vista
+                // Forzar recalibración de mapas (Leaflet fix para pestañas)
                 setTimeout(() => {
+                    if (window.map_as) window.map_as.invalidateSize();
+                    if (window.map_ac) window.map_ac.invalidateSize();
+                    if (window.map_re) window.map_re.invalidateSize();
                     section.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                }, 50);
+                }, 200);
             }
         }
     };
@@ -569,10 +728,17 @@ window.onload = async () => {
 
            document.getElementById('pub-count-total').innerText = countM + countF;
 
-            // Iniciar carga de listados públicos (forzando reinicio para ver los registros nuevos al instante)
+          // Iniciar carga de listados públicos (forzando reinicio para ver los registros nuevos al instante)
             loadPubMiss(true);
             loadPubFnd(true);
             loadPubFam(true);
+
+            // Cargar ventanas Públicas de Logística con Paginación Cero (Página 1)
+            if (typeof window.cargarLogisticaPublica === 'function') {
+                window.cargarLogisticaPublica('med', 0);
+                window.cargarLogisticaPublica('acp', 0);
+                window.cargarLogisticaPublica('ref', 0);
+            }
         } catch(e) { console.log("Error cargando estadísticas."); }
     }
 
@@ -1736,13 +1902,25 @@ listaEscaneadaPendiente.forEach((p, index) => {
             let urlFoto = "";
             if (fotoInput) { urlFoto = await processImg(fotoInput); }
 
+            let inLat = document.getElementById(`${prefijo}_lat`).value;
+            let inLng = document.getElementById(`${prefijo}_lng`).value;
+            
+            if(!inLat || !inLng) {
+                alert("❌ Te faltó tocar el mapa para fijar la ubicación exacta (Coordenadas obligatorias).");
+                btn.innerText = originalText;
+                btn.disabled = false;
+                return;
+            }
+
             let datos = {
                 nombre: document.getElementById(`${prefijo}_nombre`).value.trim().toUpperCase(),
                 estado: document.getElementById(`${prefijo}_estado`).value.trim().toUpperCase(),
                 municipio: document.getElementById(`${prefijo}_muni`).value.trim().toUpperCase(),
-                direccion: document.getElementById(`${prefijo}_dir`).value.trim(),
+               direccion: document.getElementById(`${prefijo}_dir`).value.trim(),
+                lat: parseFloat(inLat),
+                lng: parseFloat(inLng),
                 responsable: document.getElementById(`${prefijo}_resp`).value.trim(),
-                telefono: document.getElementById(`${prefijo}_tel`).value.trim(),
+                telefono: document.getElementById(`${prefijo}_tel_cod`).value + "-" + document.getElementById(`${prefijo}_tel_num`).value.trim(),
                 fotoP: urlFoto,
                 necesidades: listaInsumos,
                 fecha_timestamp: Date.now(),
@@ -2075,6 +2253,261 @@ listaEscaneadaPendiente.forEach((p, index) => {
             if(count === 0 && snap.docs.length === 15) window.loadPubRefugio();
         } catch(e) { console.error("Error en loadPubRefugio:", e); }
     };
+
+ // ============================================================================
+    // MOTOR DE MAPA RADAR Y MÚLTIPLES MINI-MAPAS (LEAFLET)
+    // ============================================================================
+    window.mapaPrincipal = null;
+    window.radarLayer = null;
+
+    const iniciarMapas = () => {
+        // 1. Iniciar Mapa Principal en Venezuela (Full Color - OpenStreetMap)
+        window.mapaPrincipal = L.map('main-map').setView([7.6, -66.1], 6);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors',
+            maxZoom: 19
+        }).addTo(window.mapaPrincipal);
+        
+        window.radarLayer = L.layerGroup().addTo(window.mapaPrincipal);
+
+        // 2. Preparar los minimapas de los formularios (Centro Caracas por defecto)
+        crearMiniMapa('map_as', 'as_lat', 'as_lng', 'txt_as_coords');
+        crearMiniMapa('map_ac', 'ac_lat', 'ac_lng', 'txt_ac_coords');
+        crearMiniMapa('map_re', 're_lat', 're_lng', 'txt_re_coords');
+
+        // 3. Encender escáner de bases de datos para el radar
+        activarEscaneoRadar("centros_medicos", "radar-pink", "🏥 Centro Médico");
+        activarEscaneoRadar("centros_acopio", "radar-blue", "📦 Centro Acopio");
+        activarEscaneoRadar("refugios", "radar-brown", "⛺ Refugio");
+    };
+
+    const crearMiniMapa = (idCaja, idLat, idLng, idTxt) => {
+        let mini = L.map(idCaja).setView([10.48, -66.9], 10);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(mini);
+        let currentMarker = null;
+        
+        mini.on('click', function(e) {
+            if(currentMarker) mini.removeLayer(currentMarker);
+            currentMarker = L.marker(e.latlng).addTo(mini);
+            document.getElementById(idLat).value = e.latlng.lat;
+            document.getElementById(idLng).value = e.latlng.lng;
+            document.getElementById(idTxt).style.display = 'block';
+        });
+        window[idCaja] = mini; // Almacenado globalmente para el invalidateSize()
+    };
+
+    const activarEscaneoRadar = (coleccionDB, cssClase, titulo) => {
+        // Escucha en TIEMPO REAL. Al enviar el formulario, aparece de inmediato en el mapa.
+        onSnapshot(collection(db, coleccionDB), (snapshot) => {
+            // No borramos todo el mapa, solo iteramos y reemplazamos
+            window.radarLayer.clearLayers(); 
+            redibujarRadarGlobal(); 
+        });
+    };
+
+    const redibujarRadarGlobal = async () => {
+        if(!window.radarLayer) return;
+        window.radarLayer.clearLayers();
+
+        const dataBases = [
+            { col: "centros_medicos", cl: "radar-pink", tit: "🏥 Centro Médico" },
+            { col: "centros_acopio", cl: "radar-blue", tit: "📦 Centro Acopio" },
+            { col: "refugios", cl: "radar-brown", tit: "⛺ Refugio" }
+        ];
+
+        for (let dbConf of dataBases) {
+            const snap = await getDocs(collection(db, dbConf.col));
+            snap.forEach(d => {
+                let f = d.data();
+                if(f.lat && f.lng) {
+                    let iconoRadar = L.divIcon({ className: `radar-marker ${dbConf.cl}`, iconSize: [22, 22] });
+                    let reqList = (f.necesidades || []).map(n => `<li>${n.item} (${n.cantidad})</li>`).join('');
+                    
+                    let fichaHTML = `<div style="font-family: 'Segoe UI', sans-serif; font-size:13px; min-width: 260px; max-width: 320px;">
+                        ${f.fotoP ? `<img src="${f.fotoP}" style="width:100%; height:160px; object-fit:cover; border-radius:8px; margin-bottom:10px; border:1px solid #eee;">` : ''}
+                        <h4 style="margin:0 0 5px 0; font-size:16px; color:var(--dark-main); border-bottom:2px solid ${dbConf.cl.includes('pink') ? '#e91e63' : dbConf.cl.includes('blue') ? '#00bcd4' : '#795548'}; padding-bottom:5px;">${dbConf.tit}: ${f.nombre}</h4>
+                        <p style="margin:3px 0;"><strong>📍 Estado / Municipio:</strong> ${f.estado}, ${f.municipio}</p>
+                        <p style="margin:3px 0;"><strong>🏠 Dirección Exacta:</strong> ${f.direccion}</p>
+                        <p style="margin:3px 0;"><strong>🗺️ Coordenadas Puntero:</strong> Lat: ${f.lat}, Lng: ${f.lng}</p>
+                        <p style="margin:3px 0;"><strong>👤 Encargado:</strong> ${f.responsable}</p>
+                        <p style="margin:3px 0;"><strong>☎️ Teléfonos:</strong> ${f.telefono}</p>
+                        <div style="background:#f9f9f9; padding:10px; border-radius:6px; margin-top:10px; border:1px solid #ddd;">
+                            <strong style="color:#d32f2f;">📦 Necesidades / Insumos Requeridos:</strong>
+                            ${reqList ? `<ul style="margin:5px 0 0 0; padding-left:20px; max-height:120px; overflow-y:auto; font-size:12px;">${reqList}</ul>` : '<p style="margin:5px 0 0 0; color:#666;">Sin requerimientos listados.</p>'}
+                        </div>
+                    </div>`;
+
+                    L.marker([f.lat, f.lng], { icon: iconoRadar }).addTo(window.radarLayer).bindPopup(fichaHTML);
+                }
+            });
+        }
+    };
+// Encender todo cuando la web inicia
+    setTimeout(iniciarMapas, 1000);
+
+   // ============================================================================
+    // LÓGICA DE VENTANAS PÚBLICAS LOGÍSTICAS (PAGINACIÓN ADELANTE Y ATRÁS CON CACHÉ)
+    // ============================================================================
+    window.logPagesData = { med: [], acp: [], ref: [] };
+    window.logCursors = { med: [], acp: [], ref: [] }; 
+    window.logIdx = { med: 0, acp: 0, ref: 0 };
+
+    window.cargarLogisticaPublica = async (tipo, direccion = 0) => {
+        const colecciones = { med: 'centros_medicos', acp: 'centros_acopio', ref: 'refugios' };
+        const colores = { med: '#e91e63', acp: '#00bcd4', ref: '#795548' };
+        const titulos = { med: 'CENTRO MÉDICO', acp: 'CENTRO DE ACOPIO', ref: 'REFUGIO' };
+        
+        if (direccion === 0) { 
+            window.logPagesData[tipo] = []; window.logCursors[tipo] = []; window.logIdx[tipo] = 0; 
+        } else if (direccion === 1) { 
+            window.logIdx[tipo]++; 
+        } else if (direccion === -1) { 
+            window.logIdx[tipo] = Math.max(0, window.logIdx[tipo] - 1); 
+        }
+
+        const container = document.getElementById(`pub-view-${tipo}`);
+        
+        // Si ya descargamos esta página, usar la caché (Cero lag y ahorra ancho de banda)
+        if (window.logPagesData[tipo][window.logIdx[tipo]]) {
+            renderHtmlLogistica(tipo, window.logPagesData[tipo][window.logIdx[tipo]], colores[tipo], titulos[tipo]);
+            return;
+        }
+
+        container.innerHTML = "<p style='text-align:center;'>Cargando datos aprobados...</p>";
+
+        try {
+            let colRef = collection(db, colecciones[tipo]);
+            let q;
+            if (window.logIdx[tipo] === 0) {
+                q = query(colRef, where("publicado", "==", true), orderBy("fecha_timestamp", "desc"), limit(5));
+            } else {
+                let prevCursor = window.logCursors[tipo][window.logIdx[tipo] - 1];
+                q = query(colRef, where("publicado", "==", true), orderBy("fecha_timestamp", "desc"), startAfter(prevCursor), limit(5));
+            }
+
+            const snap = await getDocs(q);
+            
+            if (snap.empty) {
+                window.logIdx[tipo]--; // Retrocede silenciosamente el índice
+                container.innerHTML = "<p style='text-align:center;'>No hay más registros.</p>";
+                setTimeout(() => window.cargarLogisticaPublica(tipo, 0), 1000); 
+                return;
+            }
+
+            // Guardar el último documento para saber de dónde partir en el "Siguiente"
+            window.logCursors[tipo][window.logIdx[tipo]] = snap.docs[snap.docs.length - 1];
+
+            // Extraer y memorizar datos
+            let dataArr = [];
+            snap.forEach(d => dataArr.push(d.data()));
+            window.logPagesData[tipo][window.logIdx[tipo]] = dataArr;
+
+            renderHtmlLogistica(tipo, dataArr, colores[tipo], titulos[tipo]);
+            
+        } catch(err) {
+            container.innerHTML = "<p style='text-align:center; color:red;'>Error de conexión cargando los datos.</p>";
+        }
+    };
+
+    function renderHtmlLogistica(tipo, dataArr, color, titulo) {
+        let container = document.getElementById(`pub-view-${tipo}`);
+        let html = "";
+        dataArr.forEach(f => {
+            let reqHtml = (f.necesidades || []).map(n => `<li style="margin-bottom:3px;"><strong>${n.item}</strong> (<span style="color:${color};">${n.cantidad}</span>)</li>`).join('');
+            
+            html += `
+            <div class="public-ficha" style="border: 2px solid ${color}; margin-bottom: 20px; background:white;">
+                ${f.fotoP ? `<img src="${f.fotoP}" class="ficha-img" style="height:220px; border-bottom: 2px solid ${color}; margin-bottom:10px;">` : ''}
+                <div style="background:${color}; color:white; padding:4px 8px; border-radius:4px; font-size:11px; font-weight:bold; display:inline-block; margin-bottom:5px;">✔️ OFICIAL: ${titulo}</div>
+                <h4 style="font-size:18px; margin: 5px 0 10px 0; color:${color};">${f.nombre}</h4>
+                <p style="margin:3px 0;"><strong>📍 Estado / Muni:</strong> ${f.estado}, ${f.municipio}</p>
+                <p style="margin:3px 0;"><strong>🏠 Dirección Exacta:</strong> ${f.direccion}</p>
+                <p style="margin:3px 0;"><strong>🗺️ Coordenadas:</strong> Lat: ${f.lat}, Lng: ${f.lng}</p>
+                <p style="margin:3px 0;"><strong>👤 Encargado:</strong> ${f.responsable} ☎ ${f.telefono}</p>
+                
+                <div style="background:#f4f7f6; padding:10px; border-radius:6px; margin-top:10px; border:1px solid #ddd;">
+                    <strong style="color:var(--dark-main); font-size:13px;">📦 Necesidades / Insumos:</strong>
+                    ${reqHtml ? `<ul style="margin:5px 0 0 0; padding-left:20px; font-size:13px;">${reqHtml}</ul>` : '<p style="margin:5px 0 0 0; font-size:12px; color:#777;">No hay requerimientos cargados.</p>'}
+                </div>
+            </div>`;
+        });
+        container.innerHTML = html;
+
+        // Ocultar o Mostrar Botones de Siguiente y Atrás
+        document.getElementById(`btn-prev-${tipo}`).style.display = window.logIdx[tipo] === 0 ? 'none' : 'block';
+        document.getElementById(`btn-next-${tipo}`).style.display = dataArr.length < 5 ? 'none' : 'block';
+    }
+
+    // ============================================================================
+    // BASE DE DATOS INTELIGENTE: ESTADOS Y MUNICIPIOS DE VENEZUELA
+    // ============================================================================
+    const vzlaData = {
+        "AMAZONAS": ["ALTO ORINOCO", "ATABAPO", "ATURES", "AUTANA", "MANAPIARE", "MAROA", "RÍO NEGRO"],
+        "ANZOÁTEGUI": ["ANACO", "ARAGUA", "BOLÍVAR", "BRUZUAL", "CAJIGAL", "CARVAJAL", "DIEGO BAUTISTA URBANEJA", "FREITES", "GUANIPA", "GUANTA", "INDEPENDENCIA", "LIBERTAD", "MCGREGOR", "MIRANDA", "MONAGAS", "PEÑALVER", "PÍRITU", "SAN JUAN DE CAPISTRANO", "SANTA ANA", "SIMÓN RODRÍGUEZ", "SOTILLO"],
+        "APURE": ["ACHAGUAS", "BÍRACA", "CAMAGUÁN", "MUÑOZ", "PÁEZ", "PEDRO CAMEJO", "RÓMULO GALLEGOS", "SAN FERNANDO"],
+        "ARAGUA": ["BOLÍVAR", "CAMATAGUA", "FRANCISCO LINARES ALCÁNTARA", "GIRARDOT", "JOSÉ ÁNGEL LAMAS", "JOSÉ FÉLIX RIBAS", "JOSÉ RAFAEL REVENGA", "LIBERTADOR", "MARIO BRICEÑO IRAGORRY", "OCUMARE DE LA COSTA DE ORO", "SAN CASIMIRO", "SAN SEBASTIÁN", "SANTIAGO MARIÑO", "SUCRE", "TOVAR", "URDANETA", "ZAMORA"],
+        "BARINAS": ["ALBERTO ARVELO TORREALBA", "ANDRÉS ELOY BLANCO", "ANTONIO JOSÉ DE SUCRE", "ARISMENDI", "BARINAS", "BOLÍVAR", "CRUZ PAREDES", "EZEQUIEL ZAMORA", "OBISPOS", "PEDRAZA", "ROJAS", "SOSA"],
+        "BOLÍVAR": ["ANGOSTURA", "CARONÍ", "CEDEÑO", "CHIEN", "EL CALLAO", "GRAN SABANA", "PIAR", "ROSCIO", "SIFONTES", "SUCRE"],
+        "CARABOBO": ["BEJUMA", "CARLOS ARVELO", "DIEGO IBARRA", "GUACARA", "JUAN JOSÉ MORA", "LIBERTADOR", "LOS GUAYOS", "MIRANDA", "MONTALBÁN", "NAGUANAGUA", "PUERTO CABELLO", "SAN DIEGO", "SAN JOAQUÍN", "VALENCIA"],
+        "COJEDES": ["ANZOÁTEGUI", "GIRARDOT", "LIMA BLANCO", "PAO DE SAN JUAN BAUTISTA", "RICAURTE", "RÓMULO GALLEGOS", "SAN CARLOS", "TINACO", "TINAQUILLO"],
+        "DELTA AMACURO": ["ANTONIO DÍAZ", "CASACOIMA", "PEDERNALES", "TUCUPITA"],
+        "DISTRITO CAPITAL": ["LIBERTADOR"],
+        "FALCÓN": ["ACOSTA", "BOLÍVAR", "BUCHIVACOA", "CACIQUE MANAURE", "CARIRUBANA", "COLINA", "DABAJURO", "DEMOCRACIA", "FALCÓN", "FEDERACIÓN", "JACURA", "LOS TAQUES", "MAUROA", "MIRANDA", "MONSEÑOR ITURRIZA", "PALMASOLA", "PETIT", "PÍRITU", "SAN FRANCISCO", "SILVA", "SUCRE", "TOCOPÉRO", "UNIÓN", "URUMACO", "ZAMORA"],
+        "GUÁRICO": ["CAMAGUÁN", "CHAGUARAMAS", "EL SOCORRO", "FRANCISCO DE MIRANDA", "JOSÉ FÉLIX RIBAS", "JOSÉ TADEO MONAGAS", "JUAN GERMÁN ROSCIO", "JULIÁN MELLADO", "LAS MERCEDES", "LEONARDO INFANTE", "ORTIZ", "PEDRO ZARAZA", "SAN GERÓNIMO DE GUAYABAL", "SAN JOSÉ DE GUARIBE", "SANTA MARÍA DE IPIRE"],
+        "LA GUAIRA": ["VARGAS"],
+        "LARA": ["ANDRÉS ELOY BLANCO", "CRESPO", "IRIBARREN", "JIMÉNEZ", "MORÁN", "PALAVECINO", "SIMÓN PLANAS", "TORRES", "URDANETA"],
+        "MÉRIDA": ["ALBERTO ADRIANI", "ANDRÉS BELLO", "ANTONIO PINTO SALINAS", "ARICAGUA", "ARZOBISPO CHACÓN", "CAMPO ELÍAS", "CARACCIOLO PARRA OLMEDO", "CARDENAL QUINTERO", "GUARAQUE", "JULIO CÉSAR SALAS", "JUSTO BRICEÑO", "LIBERTADOR", "MIRANDA", "OBISPO RAMOS DE LORA", "PADRE NOGUERA", "PUEBLO LLANO", "RANGEL", "RIVAS DÁVILA", "SANTOS MARQUINA", "SUCRE", "TOVAR", "TULIO FEBRES CORDERO", "ZEA"],
+        "MIRANDA": ["ACEVEDO", "ANDRÉS BELLO", "BARUTA", "BRIÓN", "BUROZ", "CARRIZAL", "CHACAO", "CRISTÓBAL ROJAS", "EL HATILLO", "GUAICAIPURO", "INDEPENDENCIA", "LANDER", "LOS SALIAS", "PÁEZ", "PAZ CASTILLO", "PEDRO GUAL", "PLAZA", "SIMÓN BOLÍVAR", "SUCRE", "URDANETA", "ZAMORA"],
+        "MONAGAS": ["ACOSTA", "AGUASAY", "BOLÍVAR", "CARIPE", "CEDEÑO", "EZEQUIEL ZAMORA", "LIBERTADOR", "MATURÍN", "PIAR", "PUNCERES", "SANTA BÁRBARA", "SOTILLO", "URACOA"],
+        "NUEVA ESPARTA": ["ANTOLÍN DEL CAMPO", "ARISMENDI", "DÍAZ", "GARCÍA", "GÓMEZ", "MANEIRO", "MARCANO", "MARIÑO", "PENÍNSULA DE MACANAO", "TUBORES", "VILLALBA"],
+        "PORTUGUESA": ["AGUA BLANCA", "ARAURE", "ESTELLER", "GUANARE", "GUANARITO", "MONSEÑOR JOSÉ VICENTE DE UNDA", "OSPINO", "PÁEZ", "PAPELÓN", "SAN GENARO DE BOCONOÍTO", "SAN RAFAEL DE ONOTO", "SANTA ROSALÍA", "SUCRE", "TURÉN"],
+        "SUCRE": ["ANDRÉS ELOY BLANCO", "ANDRÉS MATA", "ARISMENDI", "BENÍTEZ", "BERMÚDEZ", "BOLÍVAR", "CAJIGAL", "CRUZ SALMERÓN ACOSTA", "LIBERTADOR", "MARIÑO", "MEJÍA", "MONTES", "RIBERO", "SUCRE", "VALDÉZ"],
+        "TÁCHIRA": ["ANDRÉS BELLO", "ANTONIO RÓMULO COSTA", "AYACUCHO", "BOLÍVAR", "CÁRDENAS", "CÓRDOBA", "FERNÁNDEZ FEO", "FRANCISCO DE MIRANDA", "GARCÍA DE HEVIA", "GUÁSIMOS", "INDEPENDENCIA", "JÁUREGUI", "JOSÉ MARÍA VARGAS", "JUNÍN", "LIBERTAD", "LIBERTADOR", "LOBATERA", "MICHELENA", "PANAMERICANO", "PEDRO MARÍA UREÑA", "RAFAEL URDANETA", "SAMUEL DARÍO MALDONADO", "SAN CRISTÓBAL", "SAN JUDAS TADEO", "SEBORUCO", "SIMÓN RODRÍGUEZ", "SUCRE", "TORBES", "URIBANTE"],
+        "TRUJILLO": ["ANDRÉS BELLO", "BOCONÓ", "BOLÍVAR", "CANDELARIA", "CARACHE", "ESCUQUE", "JOSÉ FELIPE MÁRQUEZ CAÑIZALES", "JUAN VICENTE CAMPO ELÍAS", "LA CEIBA", "MIRANDA", "MONTE CARMELO", "MOTATÁN", "PAMPÁN", "PAMPANITO", "RAFAEL RANGEL", "SAN RAFAEL DE CARVAJAL", "SUCRE", "TRUJILLO", "URDANETA", "VALERA"],
+        "YARACUY": ["ARÍSTIDES BASTIDAS", "BOLÍVAR", "BRUZUAL", "COCOROTE", "INDEPENDENCIA", "JOSÉ ANTONIO PÁEZ", "LA TRINIDAD", "MANUEL MONGE", "NIRGUA", "PEÑA", "SAN FELIPE", "SUCRE", "URACHICHE"],
+        "ZULIA": ["ALMIRANTE PADILLA", "BARALT", "CABIMAS", "CATATUMBO", "COLÓN", "FRANCISCO JAVIER PULGAR", "GUAJIRA", "JESÚS ENRIQUE LOSADA", "JESÚS MARÍA SEMPRÚN", "LA CAÑADA DE URDANETA", "LAGUNILLAS", "MACHIQUES DE PERIJÁ", "MARA", "MARACAIBO", "MIRANDA", "ROSARIO DE PERIJÁ", "SAN FRANCISCO", "SANTA RITA", "SIMÓN BOLÍVAR", "SUCRE", "VALMORE RODRÍGUEZ"]
+    };
+
+    window.cargarEstados = () => {
+        const estados = Object.keys(vzlaData).sort();
+        const selectIds = ['as_estado', 'ac_estado', 're_estado'];
+        
+        selectIds.forEach(id => {
+            let select = document.getElementById(id);
+            if(select) {
+                estados.forEach(est => {
+                    let option = document.createElement('option');
+                    option.value = est; 
+                    option.innerText = est;
+                    select.appendChild(option);
+                });
+            }
+        });
+    };
+
+    window.cargarMunicipios = (prefijo) => {
+        const estadoSelec = document.getElementById(`${prefijo}_estado`).value;
+        const muniSelec = document.getElementById(`${prefijo}_muni`);
+        
+        muniSelec.innerHTML = '<option value="">Seleccione Municipio...</option>';
+        
+        if (estadoSelec && vzlaData[estadoSelec]) {
+            vzlaData[estadoSelec].sort().forEach(mun => {
+                let option = document.createElement('option');
+                option.value = mun; 
+                option.innerText = mun;
+                muniSelec.appendChild(option);
+            });
+           muniSelec.disabled = false;
+            muniSelec.style.background = "#ffffff";
+        } else {
+            muniSelec.disabled = true;
+            muniSelec.style.background = "#f9f9f9";
+        }
+    };
+
+    // SOLUCIÓN: Cargar los estados AQUÍ, después de que la base de datos y la función ya existen.
+    setTimeout(window.cargarEstados, 1200);
 </script>
 </body>
 </html>
